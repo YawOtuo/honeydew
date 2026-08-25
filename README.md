@@ -22,7 +22,7 @@ npm run prisma:seed
 npm run start:dev
 ```
 
-The API runs at `http://localhost:3000/api`. Health check: `GET /api/health`.
+The API runs at `http://localhost:3000/api`. Health check: `GET /api/health`. Swagger documentation is available at `http://localhost:3000/api/docs`.
 
 ### Mobile app
 

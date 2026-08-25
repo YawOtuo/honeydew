@@ -6,15 +6,10 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { SectionHeading } from '@/components/SectionHeading';
 import { TransactionRow } from '@/components/TransactionRow';
+import { Button, Card } from '@/components/ui';
 import { colors, spacing } from '@/theme';
 import { getReportSummary, ReportSummary } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
-
-const transactions = [
-  { category: 'School fees', description: 'Form 2 payment', date: 'Today', amount: 'GH₵ 2,000', type: 'income' as const, icon: 'school-outline' as const },
-  { category: 'Utilities', description: 'Electricity bill', date: 'Yesterday', amount: 'GH₵ 850', type: 'expense' as const, icon: 'bulb-outline' as const },
-  { category: 'Donations', description: 'PTA contribution', date: '12 Aug', amount: 'GH₵ 1,200', type: 'income' as const, icon: 'heart-outline' as const },
-];
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -23,7 +18,7 @@ export default function DashboardScreen() {
 
   useEffect(() => { if (token) void getReportSummary(token).then(setSummary).catch(() => undefined); }, [token]);
   return (
-    <Screen>
+    <Screen floatingAction={<TouchableOpacity style={styles.addButton} activeOpacity={0.85} onPress={() => router.push('/add-transaction')}><Ionicons name="add" size={22} color={colors.surface} /><Text style={styles.addButtonText}>Add transaction</Text></TouchableOpacity>}>
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>MONDAY, 17 AUGUST</Text>
@@ -41,44 +36,40 @@ export default function DashboardScreen() {
         <SummaryCard label="Income" value={`GH₵ ${format(summary?.income, '24,500')}`} icon="arrow-down-outline" tone="income" />
         <SummaryCard label="Expenses" value={`GH₵ ${format(summary?.expenses, '12,300')}`} icon="arrow-up-outline" tone="expense" />
       </View>
-      <View style={styles.balanceCard}>
-        <View>
-          <Text style={styles.balanceLabel}>Current balance</Text>
-          <Text style={styles.balanceValue}>GH₵ {format(summary?.balance, '12,200')}</Text>
-        </View>
-        <View style={styles.balanceBadge}><Ionicons name="trending-up" size={15} color={colors.income} /><Text style={styles.balanceBadgeText}>12.4%</Text></View>
-      </View>
+       <Card style={styles.balanceCard}>
+         <View>
+           <Text style={styles.balanceLabel}>Current balance</Text>
+           <Text style={styles.balanceValue}>GH₵ {format(summary?.balance, '12,200')}</Text>
+         </View>
+         <View style={styles.balanceBadge}><Ionicons name="trending-up" size={15} color={colors.income} /><Text style={styles.balanceBadgeText}>12.4%</Text></View>
+       </Card>
 
-      <View style={styles.chartCard}>
+       <Card style={styles.chartCard}>
         <SectionHeading title="Monthly overview" action="This month" />
         <View style={styles.chart}>
           {[48, 74, 55, 88, 66, 80, 60].map((height, index) => (
             <View key={index} style={styles.barGroup}>
               <View style={styles.barTrack}><View style={[styles.bar, { height }]} /><View style={[styles.bar, styles.expenseBar, { height: height * 0.55 }]} /></View>
               <Text style={styles.barLabel}>{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</Text>
-            </View>
+           </View>
           ))}
-        </View>
-        <View style={styles.legend}><Legend color={colors.income} label="Income" /><Legend color={colors.honey} label="Expenses" /></View>
-      </View>
+         </View>
+         <View style={styles.legend}><Legend color={colors.income} label="Income" /><Legend color={colors.honey} label="Expenses" /></View>
+       </Card>
 
       <SectionHeading title="Recent transactions" action="View all" />
-      <View style={styles.transactionCard}>{transactions.map((transaction) => <TransactionRow key={`${transaction.category}-${transaction.date}`} transaction={transaction} />)}</View>
-
-      <TouchableOpacity style={styles.addButton} activeOpacity={0.85} onPress={() => router.push('/add-transaction')}>
-        <Ionicons name="add" size={22} color={colors.surface} />
-        <Text style={styles.addButtonText}>Add transaction</Text>
-      </TouchableOpacity>
+       <Card style={styles.transactionCard}>{summary?.recent?.length ? summary.recent.map((transaction) => <TransactionRow key={transaction.id} transaction={toRow(transaction)} />) : <Text style={styles.empty}>No transactions recorded yet.</Text>}</Card>
     </Screen>
   );
 }
 
 function SummaryCard({ label, value, icon, tone }: { label: string; value: string; icon: keyof typeof Ionicons.glyphMap; tone: 'income' | 'expense' }) {
   const isIncome = tone === 'income';
-  return <View style={styles.summaryCard}><View style={[styles.summaryIcon, { backgroundColor: isIncome ? colors.incomeSoft : colors.expenseSoft }]}><Ionicons name={icon} size={18} color={isIncome ? colors.income : colors.expense} /></View><Text style={styles.summaryLabel}>{label}</Text><Text style={styles.summaryValue}>{value}</Text><Text style={styles.summaryPeriod}>This month</Text></View>;
+  return <Card style={styles.summaryCard}><View style={[styles.summaryIcon, { backgroundColor: isIncome ? colors.incomeSoft : colors.expenseSoft }]}><Ionicons name={icon} size={18} color={isIncome ? colors.income : colors.expense} /></View><Text style={styles.summaryLabel}>{label}</Text><Text style={styles.summaryValue}>{value}</Text><Text style={styles.summaryPeriod}>This month</Text></Card>;
 }
 
 function Legend({ color, label }: { color: string; label: string }) { return <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: color }]} /><Text style={styles.legendText}>{label}</Text></View>; }
+function toRow(transaction: ReportSummary['recent'][number]) { return { category: transaction.category.name, description: transaction.description ?? 'No description', date: new Date(transaction.transactionDate).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' }), amount: `GH₵ ${Number(transaction.amount).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, type: transaction.type === 'INCOME' ? 'income' as const : 'expense' as const, icon: transaction.type === 'INCOME' ? 'arrow-down-outline' as const : 'arrow-up-outline' as const }; }
 function format(value: string | undefined, fallback: string) { return Number(value ?? fallback.replace(',', '')).toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
 
 const styles = StyleSheet.create({
@@ -114,4 +105,5 @@ const styles = StyleSheet.create({
   transactionCard: { backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 14, marginBottom: 16 },
   addButton: { backgroundColor: colors.honey, borderRadius: 17, minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 2 },
   addButtonText: { color: colors.forestDark, fontSize: 15, fontWeight: '800' },
+  empty: { color: colors.slate, fontSize: 13, textAlign: 'center', paddingVertical: 28 },
 });

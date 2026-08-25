@@ -4,6 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { CategoryReport, getCategoryReport, getReportSummary, ReportSummary } from '@/api/client';
 import { Screen } from '@/components/Screen';
 import { SectionHeading } from '@/components/SectionHeading';
+import { Card, EmptyState } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { colors } from '@/theme';
 
@@ -21,7 +22,7 @@ export default function ReportsScreen() {
   if (!summary && !error) return <Screen><ActivityIndicator color={colors.forest} style={styles.loading} /></Screen>;
   if (error) return <Screen><Text style={styles.error}>{error}</Text></Screen>;
 
-  return <Screen><Text style={styles.title}>Reports</Text><Text style={styles.subtitle}>Understand where the school’s money goes.</Text><View style={styles.range}><Text style={styles.rangeText}>All transactions</Text><Text style={styles.rangeAction}>Current view</Text></View><View style={styles.totalCard}><Text style={styles.totalLabel}>Net balance</Text><Text style={styles.total}>GH₵ {format(summary?.balance)}</Text><View style={styles.totalLine}><Text style={styles.income}>Income  GH₵ {format(summary?.income)}</Text><Text style={styles.expense}>Expenses  GH₵ {format(summary?.expenses)}</Text></View></View><SectionHeading title="By category" /><View style={styles.card}>{categories.length ? categories.map((item) => <ReportRow key={`${item.type}-${item.category.id}`} name={item.category.name} amount={item.amount} type={item.type} />) : <Text style={styles.empty}>No category data yet.</Text>}</View></Screen>;
+  return <Screen><Text style={styles.title}>Reports</Text><Text style={styles.subtitle}>Understand where the school’s money goes.</Text><Card style={styles.range}><Text style={styles.rangeText}>All transactions</Text><Text style={styles.rangeAction}>Current view</Text></Card><Card style={styles.totalCard}><Text style={styles.totalLabel}>Net balance</Text><Text style={styles.total}>GH₵ {format(summary?.balance)}</Text><View style={styles.totalLine}><Text style={styles.income}>Income  GH₵ {format(summary?.income)}</Text><Text style={styles.expense}>Expenses  GH₵ {format(summary?.expenses)}</Text></View></Card><SectionHeading title="By category" /><Card style={styles.card}>{categories.length ? categories.map((item) => <ReportRow key={`${item.type}-${item.category.id}`} name={item.category.name} amount={item.amount} type={item.type} />) : <EmptyState title="No category data yet." />}</Card></Screen>;
 }
 
 function format(value?: string) { return Number(value ?? 0).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }

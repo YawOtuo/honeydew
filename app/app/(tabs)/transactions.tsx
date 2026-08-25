@@ -6,6 +6,7 @@ import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { getTransactions, Transaction } from '@/api/client';
 import { Screen } from '@/components/Screen';
 import { TransactionRow } from '@/components/TransactionRow';
+import { Card, EmptyState } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { colors } from '@/theme';
 
@@ -33,7 +34,7 @@ export default function TransactionsScreen() {
     }
   }
 
-  return <Screen><View style={styles.heading}><View><Text style={styles.title}>Transactions</Text><Text style={styles.subtitle}>Keep track of every cedi.</Text></View><TouchableOpacity style={styles.addSmall} onPress={() => router.push('/add-transaction')}><Ionicons name="add" size={21} color={colors.forestDark} /></TouchableOpacity></View><View style={styles.search}><Ionicons name="search-outline" size={19} color={colors.slate} /><TextInput placeholder="Search transactions" placeholderTextColor={colors.muted} style={styles.input} /></View><View style={styles.filters}><Text style={styles.filterActive}>All</Text><Text style={styles.filter}>Income</Text><Text style={styles.filter}>Expenses</Text><Ionicons name="options-outline" size={19} color={colors.forest} /></View><View style={styles.card}>{isLoading ? <ActivityIndicator color={colors.forest} style={styles.state} /> : error ? <View style={styles.state}><Text style={styles.error}>{error}</Text><TouchableOpacity onPress={() => token && loadTransactions(token)}><Text style={styles.retry}>Try again</Text></TouchableOpacity></View> : transactions.length ? transactions.map((transaction) => <TransactionRow key={transaction.id} transaction={toRow(transaction)} />) : <Text style={styles.empty}>No transactions recorded yet.</Text>}</View></Screen>;
+  return <Screen><View style={styles.heading}><View><Text style={styles.title}>Transactions</Text><Text style={styles.subtitle}>Keep track of every cedi.</Text></View><TouchableOpacity style={styles.addSmall} onPress={() => router.push('/add-transaction')}><Ionicons name="add" size={21} color={colors.forestDark} /></TouchableOpacity></View><View style={styles.search}><Ionicons name="search-outline" size={19} color={colors.slate} /><TextInput placeholder="Search transactions" placeholderTextColor={colors.muted} style={styles.input} /></View><View style={styles.filters}><Text style={styles.filterActive}>All</Text><Text style={styles.filter}>Income</Text><Text style={styles.filter}>Expenses</Text><Ionicons name="options-outline" size={19} color={colors.forest} /></View><Card style={styles.card}>{isLoading ? <ActivityIndicator color={colors.forest} style={styles.state} /> : error ? <View style={styles.state}><Text style={styles.error}>{error}</Text><TouchableOpacity onPress={() => token && loadTransactions(token)}><Text style={styles.retry}>Try again</Text></TouchableOpacity></View> : transactions.length ? transactions.map((transaction) => <TransactionRow key={transaction.id} transaction={toRow(transaction)} />) : <EmptyState title="No transactions recorded yet." />}</Card></Screen>;
 }
 
 function toRow(transaction: Transaction) {

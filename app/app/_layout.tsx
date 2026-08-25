@@ -1,6 +1,7 @@
 import { Redirect, Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 
@@ -18,14 +19,14 @@ function AuthGate() {
 
   if (isLoading) return null;
   if (!user && !inAuthGroup) return <Redirect href="/(auth)/login" />;
-  return <Stack screenOptions={{ headerShown: false }}><Stack.Screen name="add-transaction" options={{ presentation: 'modal' }} /></Stack>;
+  return <Stack screenOptions={{ headerShown: false }}><Stack.Screen name="add-transaction" options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' }, gestureEnabled: false }} /></Stack>;
 }
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
+    <SafeAreaProvider><AuthProvider>
       <StatusBar style="dark" />
       <AuthGate />
-    </AuthProvider>
+    </AuthProvider></SafeAreaProvider>
   );
 }
