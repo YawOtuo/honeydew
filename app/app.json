@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Honeydew",
+    "slug": "honeydew",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "honeydew",
+    "plugins": ["expo-router"],
+    "android": {
+      "package": "com.honeydew.schoolfinance"
+    }
+  }
+}

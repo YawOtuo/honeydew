@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  ACCOUNTANT
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentMethod {
+  CASH
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  role         UserRole
+  createdAt    DateTime    @default(now())
+
+  transactions Transaction[] @relation("CreatedTransactions")
+  auditLogs    AuditLog[]    @relation("ActorAuditLogs")
+}
+
+model Category {
+  id           String          @id @default(cuid())
+  name         String
+  type         TransactionType
+  color        String?
+  createdAt    DateTime        @default(now())
+
+  transactions Transaction[]
+
+  @@unique([name, type])
+  @@index([type])
+}
+
+model Transaction {
+  id            String         @id @default(cuid())
+  type          TransactionType
+  amount        Decimal        @db.Decimal(14, 2)
+  categoryId    String
+  description   String?
+  invoiceNumber String?
+  paymentMethod PaymentMethod?
+  transactionDate DateTime
+  createdById   String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy     User           @relation("CreatedTransactions", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([transactionDate])
+  @@index([type])
+  @@index([categoryId])
+  @@index([deletedAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  details     Json
+  createdAt   DateTime @default(now())
+
+  actor User? @relation("ActorAuditLogs", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+}
