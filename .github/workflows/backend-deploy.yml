@@ -37,6 +37,8 @@ jobs:
             --header "Content-Type: application/json" \
             --data "$config_vars" \
             "https://api.heroku.com/apps/$HEROKU_APP_NAME/config-vars"
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
       - uses: akhileshns/heroku-deploy@v3.14.15
         with:
           heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
