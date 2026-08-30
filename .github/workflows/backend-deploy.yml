@@ -12,7 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Sync Heroku config vars
-        uses: heroku/cli-action@v2
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
           HEROKU_APP_NAME: ${{ vars.HEROKU_APP_NAME }}
@@ -21,8 +20,21 @@ jobs:
           SEED_ADMIN_EMAIL: ${{ secrets.SEED_ADMIN_EMAIL }}
           SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
           APP_TIMEZONE: ${{ vars.APP_TIMEZONE }}
-        with:
-          args: config:set "DATABASE_URL=$DATABASE_URL" "JWT_SECRET=$JWT_SECRET" "SEED_ADMIN_EMAIL=$SEED_ADMIN_EMAIL" "SEED_ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD" "APP_TIMEZONE=$APP_TIMEZONE" --app "$HEROKU_APP_NAME"
+        run: |
+          config_vars=$(jq -n \
+            --arg database_url "$DATABASE_URL" \
+            --arg jwt_secret "$JWT_SECRET" \
+            --arg admin_email "$SEED_ADMIN_EMAIL" \
+            --arg admin_password "$SEED_ADMIN_PASSWORD" \
+            --arg timezone "$APP_TIMEZONE" \
+            '{DATABASE_URL: $database_url, JWT_SECRET: $jwt_secret, SEED_ADMIN_EMAIL: $admin_email, SEED_ADMIN_PASSWORD: $admin_password, APP_TIMEZONE: $timezone}')
+          curl --fail --silent --show-error \
+            --request PATCH \
+            --user ":$HEROKU_API_KEY" \
+            --header "Accept: application/vnd.heroku+json; version=3" \
+            --header "Content-Type: application/json" \
+            --data "$config_vars" \
+            "https://api.heroku.com/apps/$HEROKU_APP_NAME/config-vars"
       - uses: akhileshns/heroku-deploy@v3.14.15
         with:
           heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
