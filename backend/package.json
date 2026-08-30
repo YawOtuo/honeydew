@@ -6,7 +6,7 @@
     "build": "nest build",
     "heroku-postbuild": "npm run prisma:generate && npm run build",
     "start": "nest start",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
     "start:dev": "nest start --watch",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
