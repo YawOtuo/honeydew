@@ -45,4 +45,7 @@ cd app && npm run typecheck && npx expo-doctor
 
 - Backend deploys from `backend/` to Heroku. The Heroku release phase runs `prisma migrate deploy`.
 - Mobile builds run through EAS from `app/`.
-- Neon and deployment credentials must be configured as hosting or GitHub secrets and never committed.
+- The backend deployment workflow syncs its runtime config from the GitHub `production` environment before deploying.
+- Configure `HEROKU_APP_NAME` and `APP_TIMEZONE` as GitHub environment variables.
+- Configure `HEROKU_API_KEY`, `HEROKU_EMAIL`, `DATABASE_URL`, `JWT_SECRET`, `SEED_ADMIN_EMAIL`, and `SEED_ADMIN_PASSWORD` as GitHub environment secrets.
+- Neon and deployment credentials must never be committed.
