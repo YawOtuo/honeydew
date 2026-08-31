@@ -34,7 +34,8 @@
     "prisma": "^5.22.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "tsx": "^4.19.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
@@ -44,7 +45,6 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.1",
     "@types/passport-jwt": "^4.0.1",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
 }
