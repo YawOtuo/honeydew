@@ -2,10 +2,16 @@ name: Build Android App
 
 on:
   push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/app-eas.yml'
     tags: ['v*']
+  workflow_dispatch:
 
 jobs:
   build:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -19,5 +25,28 @@ jobs:
           cache-dependency-path: app/package-lock.json
       - run: npm ci
       - run: npx eas-cli build --platform android --profile preview --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - name: Publish preview update
+        run: npx eas-cli update --channel preview --environment preview --message "Preview update from ${GITHUB_SHA}" --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Publish production update
+        run: npx eas-cli update --channel production --environment production --message "Production update from ${GITHUB_SHA}" --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

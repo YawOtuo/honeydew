@@ -3,12 +3,25 @@
     "name": "Honeydew",
     "slug": "honeydew",
     "version": "1.0.0",
+    "runtimeVersion": { "policy": "appVersion" },
+    "updates": {
+      "url": "https://u.expo.dev/f1f0c296-be3e-4bf3-81a7-d22258a9968d"
+    },
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "honeydew",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "android": {
       "package": "com.honeydew.schoolfinance"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f1f0c296-be3e-4bf3-81a7-d22258a9968d"
+      }
+    },
+    "owner": "yawotuo"
   }
 }
