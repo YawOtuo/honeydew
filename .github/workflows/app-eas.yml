@@ -13,6 +13,7 @@ jobs:
   build:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    environment: production
     defaults:
       run:
         working-directory: app
@@ -31,6 +32,7 @@ jobs:
   update:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: production
     defaults:
       run:
         working-directory: app
