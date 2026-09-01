@@ -1,40 +1,55 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Dimensions, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
-import { Category, createTransaction, getCategories } from "@/api/client";
+import { createTransaction, updateTransaction } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
 import { colors } from "@/theme";
-import { BottomSheet, Button, Input, Select } from "@/components/ui";
+import { BottomSheet, Button, Input, Select, useToast } from "@/components/ui";
+import { queryKeys, useCategoriesQuery, useTransactionsQuery } from "@/api/queries";
 
 export default function AddTransactionScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const { token } = useAuth();
+  const { data: transactions } = useTransactionsQuery(token);
+  const transaction = id ? transactions?.items.find((item) => item.id === id) : undefined;
+  const isEditing = Boolean(id);
   const [type, setType] = useState<"INCOME" | "EXPENSE">("INCOME");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const categoriesQuery = useCategoriesQuery(token);
+  const availableCategories = (categoriesQuery.data ?? []).filter((category) => category.type === type);
   useEffect(() => {
-    if (token) void loadCategories(token);
-  }, [token]);
-  const availableCategories = useMemo(
-    () => categories.filter((category) => category.type === type),
-    [categories, type],
-  );
-
-  async function loadCategories(authToken: string) {
-    try {
-      setCategories(await getCategories(authToken));
-    } catch {
-      setError("Unable to load categories.");
-    }
-  }
+    if (!transaction) return;
+    setType(transaction.type);
+    setAmount(transaction.amount);
+    setCategoryId(transaction.category.id);
+    setDescription(transaction.description ?? "");
+    setInvoiceNumber(transaction.invoiceNumber ?? "");
+  }, [transaction]);
+  const createMutation = useMutation({
+    mutationFn: (body: Parameters<typeof createTransaction>[1]) => isEditing ? updateTransaction(token!, id!, body) : createTransaction(token!, body),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.summary }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.categoryReport }),
+        queryClient.invalidateQueries({ queryKey: ['reports', 'monthly'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.audit }),
+      ]);
+       showToast(isEditing ? "Transaction updated successfully." : "Transaction saved successfully.");
+      closeSheet();
+    },
+    onError: (saveError) => setError(saveError instanceof Error ? saveError.message : "Unable to save transaction."),
+  });
 
   async function save() {
     if (!token) return;
@@ -43,9 +58,7 @@ export default function AddTransactionScreen() {
       setError("Enter an amount and choose a category.");
       return;
     }
-    setIsSaving(true);
-    try {
-      await createTransaction(token, {
+    createMutation.mutate({
         type,
         amount,
         categoryId,
@@ -54,16 +67,6 @@ export default function AddTransactionScreen() {
         invoiceNumber: invoiceNumber || undefined,
         paymentMethod: "CASH",
       });
-      closeSheet();
-    } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Unable to save transaction.",
-      );
-    } finally {
-      setIsSaving(false);
-    }
   }
 
   function closeSheet() {
@@ -72,7 +75,7 @@ export default function AddTransactionScreen() {
   }
 
   return (
-    <BottomSheet visible onClose={closeSheet} title="Add transaction">
+     <BottomSheet visible onClose={closeSheet} title={isEditing ? "Edit transaction" : "Add transaction"} height={Math.round(Dimensions.get("window").height * 0.88)} footer={<Button style={styles.save} onPress={save} loading={createMutation.isPending}>{isEditing ? "Save changes" : "Save transaction"}</Button>}>
       <View style={styles.content}>
         <Text style={styles.subtitle}>
           Record money coming in or going out.
@@ -135,7 +138,6 @@ export default function AddTransactionScreen() {
           <Text style={styles.cash}>Cash</Text>
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Button style={styles.save} onPress={save} loading={isSaving}>Save transaction</Button>
       </View>
     </BottomSheet>
   );

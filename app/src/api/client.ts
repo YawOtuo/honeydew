@@ -1,8 +1,14 @@
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:3000/api';
+let refreshHandler: (() => Promise<string | null>) | null = null;
+let refreshPromise: Promise<string | null> | null = null;
+
+export function setRefreshHandler(handler: (() => Promise<string | null>) | null) {
+  refreshHandler = handler;
+}
 
 type ApiError = { message?: string | string[] };
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+export async function apiRequest<T>(path: string, options: RequestInit = {}, token?: string, canRefresh = true): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
@@ -13,6 +19,11 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, tok
   });
 
   if (!response.ok) {
+    if (response.status === 401 && canRefresh && refreshHandler) {
+      refreshPromise ??= refreshHandler().finally(() => { refreshPromise = null; });
+      const refreshedToken = await refreshPromise;
+      if (refreshedToken) return apiRequest<T>(path, options, refreshedToken, false);
+    }
     const error = (await response.json().catch(() => ({}))) as ApiError;
     const message = Array.isArray(error.message) ? error.message.join(' ') : error.message;
     throw new Error(message ?? 'Something went wrong. Please try again.');
@@ -22,7 +33,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, tok
 }
 
 export type AuthUser = { id: string; email: string; role: 'ADMIN' | 'ACCOUNTANT' };
-export type LoginResponse = { accessToken: string; user: AuthUser };
+export type LoginResponse = { accessToken: string; refreshToken: string; user: AuthUser };
 
 export type Transaction = {
   id: string;
@@ -57,6 +68,10 @@ export function login(email: string, password: string) {
   });
 }
 
+export function refreshAccessToken(refreshToken: string) {
+  return apiRequest<LoginResponse>('/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) }, undefined, false);
+}
+
 export function getTransactions(token: string) {
   return apiRequest<TransactionListResponse>('/transactions?page=1&limit=50', {}, token);
 }
@@ -65,6 +80,14 @@ export function getCategories(token: string) { return apiRequest<Category[]>('/c
 
 export function createTransaction(token: string, body: { type: 'INCOME' | 'EXPENSE'; amount: string; categoryId: string; transactionDate: string; description?: string; invoiceNumber?: string; paymentMethod: 'CASH' }) {
   return apiRequest<Transaction>('/transactions', { method: 'POST', body: JSON.stringify(body) }, token);
+}
+
+export function updateTransaction(token: string, id: string, body: Parameters<typeof createTransaction>[1]) {
+  return apiRequest<Transaction>(`/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }, token);
+}
+
+export function deleteTransaction(token: string, id: string) {
+  return apiRequest<{ id: string; deleted: boolean }>(`/transactions/${id}`, { method: 'DELETE' }, token);
 }
 
 export function getReportSummary(token: string) { return apiRequest<ReportSummary>('/reports/summary', {}, token); }

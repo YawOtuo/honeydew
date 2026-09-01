@@ -1,14 +1,25 @@
-import { PropsWithChildren } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
+import { PropsWithChildren, useCallback, useEffect, useRef } from 'react';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/theme';
 
-type BottomSheetProps = PropsWithChildren<{ visible: boolean; onClose: () => void; title?: string; height?: number }>;
+type BottomSheetProps = PropsWithChildren<{ visible: boolean; onClose: () => void; title?: string; height?: number; footer?: React.ReactNode }>;
 
-export function BottomSheet({ visible, onClose, title, height, children }: BottomSheetProps) {
+export function BottomSheet({ visible, onClose, title, height, footer, children }: BottomSheetProps) {
+  const modalRef = useRef<BottomSheetModal>(null);
   const insets = useSafeAreaInsets();
-  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.overlay}><Pressable style={styles.backdrop} onPress={onClose} /><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.sheet, height ? { height } : undefined, { paddingBottom: Math.max(insets.bottom, 16) }]}><View style={styles.handle} /><View style={styles.header}><Text style={styles.title}>{title}</Text><Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close"><Text style={styles.close}>×</Text></Pressable></View><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView></KeyboardAvoidingView></View></Modal>;
+
+  useEffect(() => {
+    if (visible) modalRef.current?.present();
+    else modalRef.current?.dismiss();
+  }, [visible]);
+
+  const renderBackdrop = useCallback((props: React.ComponentProps<typeof BottomSheetBackdrop>) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />, []);
+  const handleDismiss = useCallback(() => onClose(), [onClose]);
+
+  return <BottomSheetModal ref={modalRef} onDismiss={handleDismiss} snapPoints={height ? [height] : undefined} enableDynamicSizing={!height} maxDynamicContentSize={Dimensions.get('window').height - insets.top - 24} backdropComponent={renderBackdrop} enablePanDownToClose backgroundStyle={styles.background} handleIndicatorStyle={styles.handle} keyboardBehavior="interactive" keyboardBlurBehavior="restore" android_keyboardInputMode="adjustResize"><BottomSheetView style={styles.column}><View style={styles.header}><Text style={styles.title}>{title}</Text><Pressable onPress={() => modalRef.current?.dismiss()} hitSlop={10} accessibilityLabel="Close"><Text style={styles.close}>×</Text></Pressable></View><BottomSheetScrollView contentContainerStyle={[styles.content, footer ? styles.contentWithFooter : null]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</BottomSheetScrollView>{footer ? <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>{footer}</View> : null}</BottomSheetView></BottomSheetModal>;
 }
 
-const styles = StyleSheet.create({ overlay: { flex: 1, justifyContent: 'flex-end' }, backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10, 30, 24, 0.42)' }, sheet: { maxHeight: '92%', minHeight: 220, backgroundColor: colors.canvas, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' }, handle: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: colors.line, marginTop: 10 }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 }, title: { color: colors.ink, fontSize: 19, fontWeight: '800' }, close: { color: colors.slate, fontSize: 28, lineHeight: 28 }, content: { padding: 20, paddingBottom: 8 } });
+const styles = StyleSheet.create({ background: { backgroundColor: colors.canvas, borderTopLeftRadius: 28, borderTopRightRadius: 28 }, handle: { backgroundColor: colors.line, width: 42 }, column: { maxHeight: '92%', minHeight: 220 }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 }, title: { color: colors.ink, fontSize: 19, fontWeight: '800' }, close: { color: colors.slate, fontSize: 28, lineHeight: 28 }, content: { padding: 20, paddingBottom: 8 }, contentWithFooter: { paddingBottom: 92 }, footer: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.canvas, paddingHorizontal: 20, paddingTop: 12 } });

@@ -47,5 +47,5 @@ cd app && npm run typecheck && npx expo-doctor
 - Mobile builds run through EAS from `app/`.
 - The backend deployment workflow syncs its runtime config from the GitHub `production` environment before deploying.
 - Configure `HEROKU_APP_NAME` and `APP_TIMEZONE` as GitHub environment variables.
-- Configure `HEROKU_API_KEY`, `HEROKU_EMAIL`, `DATABASE_URL`, `JWT_SECRET`, `SEED_ADMIN_EMAIL`, and `SEED_ADMIN_PASSWORD` as GitHub environment secrets.
+- Configure `HEROKU_API_KEY`, `HEROKU_EMAIL`, `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `SEED_ADMIN_EMAIL`, and `SEED_ADMIN_PASSWORD` as GitHub environment secrets.
 - Neon and deployment credentials must never be committed.

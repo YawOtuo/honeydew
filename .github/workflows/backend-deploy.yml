@@ -19,6 +19,7 @@ jobs:
           HEROKU_APP_NAME: ${{ vars.HEROKU_APP_NAME }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
           SEED_ADMIN_EMAIL: ${{ secrets.SEED_ADMIN_EMAIL }}
           SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
           APP_TIMEZONE: ${{ vars.APP_TIMEZONE }}
@@ -29,7 +30,8 @@ jobs:
             --arg admin_email "$SEED_ADMIN_EMAIL" \
             --arg admin_password "$SEED_ADMIN_PASSWORD" \
             --arg timezone "$APP_TIMEZONE" \
-            '{DATABASE_URL: $database_url, JWT_SECRET: $jwt_secret, SEED_ADMIN_EMAIL: $admin_email, SEED_ADMIN_PASSWORD: $admin_password, APP_TIMEZONE: $timezone}')
+            --arg jwt_refresh_secret "$JWT_REFRESH_SECRET" \
+            '{DATABASE_URL: $database_url, JWT_SECRET: $jwt_secret, JWT_REFRESH_SECRET: $jwt_refresh_secret, SEED_ADMIN_EMAIL: $admin_email, SEED_ADMIN_PASSWORD: $admin_password, APP_TIMEZONE: $timezone}')
           curl --fail --silent --show-error \
             --request PATCH \
             --user ":$HEROKU_API_KEY" \
