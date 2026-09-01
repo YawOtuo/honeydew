@@ -65,7 +65,7 @@ export default function DashboardScreen() {
          <View style={styles.legend}><Legend color={colors.income} label="Income" /><Legend color={colors.honey} label="Expenses" /></View>
        </Card>
 
-      <SectionHeading title="Recent transactions" action="View all" />
+       <SectionHeading title="Recent transactions" action="View all" onActionPress={() => router.push('/(tabs)/transactions')} />
         <Card style={styles.transactionCard}>{summary?.recent?.length ? summary.recent.map((transaction) => <TransactionRow key={transaction.id} transaction={toRow(transaction)} onPress={() => setSelectedTransaction(transaction)} />) : <Text style={styles.empty}>No transactions recorded yet.</Text>}</Card>
       </Screen>
       <TransactionDetailsSheet transaction={selectedTransaction} isAdmin={false} onClose={() => setSelectedTransaction(null)} onEdit={() => undefined} onDelete={() => undefined} />
