@@ -77,9 +77,6 @@ export default function AddTransactionScreen() {
   return (
      <BottomSheet visible onClose={closeSheet} title={isEditing ? "Edit transaction" : "Add transaction"} height={Math.round(Dimensions.get("window").height * 0.88)} footer={<Button style={styles.save} onPress={save} loading={createMutation.isPending}>{isEditing ? "Save changes" : "Save transaction"}</Button>}>
       <View style={styles.content}>
-        <Text style={styles.subtitle}>
-          Record money coming in or going out.
-        </Text>
         <View style={styles.typeSwitch}>
           <TouchableOpacity
             style={[styles.typeOption, type === "INCOME" && styles.typeIncome]}
@@ -129,7 +126,7 @@ export default function AddTransactionScreen() {
             style={styles.amountInput}
           />
         </View>
-        <Select label="Category" value={categoryId} onChange={setCategoryId} placeholder="Choose a category" options={availableCategories.map((category) => ({ label: category.name, value: category.id }))} disabled={!availableCategories.length} />
+        <Select label="Category" value={categoryId} onChange={setCategoryId} placeholder={categoriesQuery.isLoading ? "Loading categories..." : "Choose a category"} emptyMessage={categoriesQuery.isError ? "Unable to load categories." : "No categories available."} options={availableCategories.map((category) => ({ label: category.name, value: category.id }))} />
         <Input label="Invoice number" placeholder="e.g. INV-001" value={invoiceNumber} onChangeText={setInvoiceNumber} />
         <Input label="Description" placeholder="Add some context" value={description} onChangeText={setDescription} multiline style={styles.multiline} />
         <View style={styles.payment}>
@@ -145,7 +142,7 @@ export default function AddTransactionScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { padding: 20, paddingBottom: 35 },
+  content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 35 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -241,7 +238,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.honey,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 22,
   },
   saveText: { color: colors.forestDark, fontWeight: "800", fontSize: 15 },
 });

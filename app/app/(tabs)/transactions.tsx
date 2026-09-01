@@ -208,8 +208,18 @@ function TransactionDetailsSheet({
   onDelete: () => void;
 }) {
   if (!transaction) return null;
+  const actions = isAdmin ? (
+    <View style={styles.detailActions}>
+      <Button onPress={onEdit} style={styles.editButton}>
+        Edit transaction
+      </Button>
+      <TouchableOpacity onPress={onDelete} style={styles.deleteButton}>
+        <Text style={styles.deleteText}>Delete transaction</Text>
+      </TouchableOpacity>
+    </View>
+  ) : undefined;
   return (
-    <BottomSheet visible onClose={onClose} title="Transaction details">
+    <BottomSheet visible onClose={onClose} title="Transaction details" footer={actions}>
       <View style={styles.detailsSheet}>
         <View style={styles.detailAmount}>
           <Text style={styles.detailType}>
@@ -249,16 +259,6 @@ function TransactionDetailsSheet({
           label="Description"
           value={transaction.description ?? "No description"}
         />
-        {isAdmin ? (
-          <View style={styles.detailActions}>
-            <Button onPress={onEdit} style={styles.editButton}>
-              Edit transaction
-            </Button>
-            <TouchableOpacity onPress={onDelete} style={styles.deleteButton}>
-              <Text style={styles.deleteText}>Delete transaction</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
       </View>
     </BottomSheet>
   );
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "right",
   },
-  detailActions: { marginTop: 20, gap: 10 },
+  detailActions: { gap: 10 },
   editButton: { minHeight: 48 },
   deleteButton: {
     minHeight: 48,
