@@ -49,3 +49,19 @@ cd app && npm run typecheck && npx expo-doctor
 - Configure `HEROKU_APP_NAME` and `APP_TIMEZONE` as GitHub environment variables.
 - Configure `HEROKU_API_KEY`, `HEROKU_EMAIL`, `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `SEED_ADMIN_EMAIL`, and `SEED_ADMIN_PASSWORD` as GitHub environment secrets.
 - Neon and deployment credentials must never be committed.
+
+### Make commands
+
+Build a local-installable Android APK through EAS:
+
+```bash
+make apk-build
+```
+
+Run pending Prisma migrations on Heroku:
+
+```bash
+make heroku-migrate
+```
+
+The EAS command requires an authenticated EAS CLI session or `EXPO_TOKEN`. The Heroku command requires the Heroku CLI and an authenticated session or `HEROKU_API_KEY`.

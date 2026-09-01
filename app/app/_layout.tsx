@@ -61,10 +61,10 @@ function AuthGate() {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider><BottomSheetModalProvider><QueryClientProvider client={queryClient}><AuthProvider><ToastProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider><QueryClientProvider client={queryClient}><AuthProvider><ToastProvider><BottomSheetModalProvider>
       <StatusBar style="dark" />
       <UpdateChecker />
       <AuthGate />
-    </ToastProvider></AuthProvider></QueryClientProvider></BottomSheetModalProvider></SafeAreaProvider></GestureHandlerRootView>
+    </BottomSheetModalProvider></ToastProvider></AuthProvider></QueryClientProvider></SafeAreaProvider></GestureHandlerRootView>
   );
 }

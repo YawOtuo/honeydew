@@ -15,7 +15,14 @@
     "scheme": "honeydew",
     "plugins": [
       "expo-router",
-      "expo-splash-screen"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 256,
+          "backgroundColor": "#F6F8F5"
+        }
+      ]
     ],
     "android": {
       "package": "com.honeydew.schoolfinance"
