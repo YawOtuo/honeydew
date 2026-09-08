@@ -19,6 +19,8 @@ enum TransactionType {
 
 enum PaymentMethod {
   CASH
+  MOMO
+  BANK
 }
 
 model User {
@@ -34,16 +36,21 @@ model User {
 }
 
 model Category {
-  id           String          @id @default(cuid())
-  name         String
-  type         TransactionType
-  color        String?
-  createdAt    DateTime        @default(now())
+  id             String          @id @default(cuid())
+  name           String
+  normalizedName String
+  type           TransactionType
+  color          String?
+  isActive       Boolean         @default(true)
+  sortOrder      Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   transactions Transaction[]
 
-  @@unique([name, type])
+  @@unique([normalizedName, type])
   @@index([type])
+  @@index([type, isActive, sortOrder])
 }
 
 model Transaction {

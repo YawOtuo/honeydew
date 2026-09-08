@@ -2,8 +2,10 @@
   "expo": {
     "name": "Honeydew",
     "slug": "honeydew",
-    "version": "1.0.0",
-    "runtimeVersion": { "policy": "appVersion" },
+    "version": "1.0.1",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "updates": {
       "url": "https://u.expo.dev/f1f0c296-be3e-4bf3-81a7-d22258a9968d"
     },
@@ -22,7 +24,8 @@
           "imageWidth": 256,
           "backgroundColor": "#F6F8F5"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "android": {
       "package": "com.honeydew.schoolfinance"

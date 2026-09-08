@@ -34,6 +34,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, tok
 
 export type AuthUser = { id: string; email: string; role: 'ADMIN' | 'ACCOUNTANT' };
 export type LoginResponse = { accessToken: string; refreshToken: string; user: AuthUser };
+export type PaymentMethod = 'CASH' | 'MOMO' | 'BANK';
 
 export type Transaction = {
   id: string;
@@ -42,7 +43,7 @@ export type Transaction = {
   transactionDate: string;
   description: string | null;
   invoiceNumber: string | null;
-  paymentMethod: 'CASH' | null;
+  paymentMethod: PaymentMethod | null;
   category: { id: string; name: string; type: 'INCOME' | 'EXPENSE' };
 };
 
@@ -54,7 +55,7 @@ export type TransactionListResponse = {
   totalPages: number;
 };
 
-export type Category = { id: string; name: string; type: 'INCOME' | 'EXPENSE'; color: string | null };
+export type Category = { id: string; name: string; type: 'INCOME' | 'EXPENSE'; color: string | null; isActive: boolean; sortOrder: number };
 export type ReportSummary = { income: string; expenses: string; balance: string; recent: Transaction[] };
 export type MonthlyReport = { month: number; income: string; expenses: string; balance: string }[];
 export type CategoryReport = { category: Category; type: 'INCOME' | 'EXPENSE'; amount: string }[];
@@ -76,9 +77,21 @@ export function getTransactions(token: string) {
   return apiRequest<TransactionListResponse>('/transactions?page=1&limit=50', {}, token);
 }
 
-export function getCategories(token: string) { return apiRequest<Category[]>('/categories', {}, token); }
+export function getCategories(token: string, includeArchived = false) { return apiRequest<Category[]>(`/categories${includeArchived ? '?includeArchived=true' : ''}`, {}, token); }
 
-export function createTransaction(token: string, body: { type: 'INCOME' | 'EXPENSE'; amount: string; categoryId: string; transactionDate: string; description?: string; invoiceNumber?: string; paymentMethod: 'CASH' }) {
+export function createCategory(token: string, body: { name: string; type: 'INCOME' | 'EXPENSE' }) {
+  return apiRequest<Category>('/categories', { method: 'POST', body: JSON.stringify(body) }, token);
+}
+
+export function updateCategory(token: string, id: string, body: { name: string }) {
+  return apiRequest<Category>(`/categories/${id}`, { method: 'PATCH', body: JSON.stringify(body) }, token);
+}
+
+export function setCategoryActive(token: string, id: string, isActive: boolean) {
+  return apiRequest<Category>(`/categories/${id}/${isActive ? 'restore' : 'archive'}`, { method: 'POST' }, token);
+}
+
+export function createTransaction(token: string, body: { type: 'INCOME' | 'EXPENSE'; amount: string; categoryId: string; transactionDate: string; description?: string; invoiceNumber?: string; paymentMethod: PaymentMethod }) {
   return apiRequest<Transaction>('/transactions', { method: 'POST', body: JSON.stringify(body) }, token);
 }
 
@@ -90,7 +103,13 @@ export function deleteTransaction(token: string, id: string) {
   return apiRequest<{ id: string; deleted: boolean }>(`/transactions/${id}`, { method: 'DELETE' }, token);
 }
 
-export function getReportSummary(token: string) { return apiRequest<ReportSummary>('/reports/summary', {}, token); }
+export function getReportSummary(token: string, from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const query = params.toString();
+  return apiRequest<ReportSummary>(`/reports/summary${query ? `?${query}` : ''}`, {}, token);
+}
 export function getMonthlyReport(token: string, year = new Date().getFullYear()) { return apiRequest<MonthlyReport>(`/reports/monthly?year=${year}`, {}, token); }
 export function getCategoryReport(token: string) { return apiRequest<CategoryReport>('/reports/by-category', {}, token); }
 export function createUser(token: string, body: { email: string; password: string; role: 'ADMIN' | 'ACCOUNTANT' }) { return apiRequest<AuthUser>('/users', { method: 'POST', body: JSON.stringify(body) }, token); }

@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 
-import { deleteTransaction, Transaction } from "@/api/client";
+import { deleteTransaction, PaymentMethod, Transaction } from "@/api/client";
 import { queryKeys, useTransactionsQuery } from "@/api/queries";
 import { Screen } from "@/components/Screen";
 import { TransactionRow } from "@/components/TransactionRow";
@@ -247,9 +247,7 @@ function TransactionDetailsSheet({
         />
         <DetailLine
           label="Payment method"
-          value={
-            transaction.paymentMethod === "CASH" ? "Cash" : "Not specified"
-          }
+          value={paymentMethodLabel(transaction.paymentMethod)}
         />
         <DetailLine
           label="Invoice number"
@@ -262,6 +260,10 @@ function TransactionDetailsSheet({
       </View>
     </BottomSheet>
   );
+}
+
+function paymentMethodLabel(value: PaymentMethod | null) {
+  return value === "MOMO" ? "MoMo" : value === "BANK" ? "Bank" : value === "CASH" ? "Cash" : "Not specified";
 }
 
 function DetailLine({ label, value }: { label: string; value: string }) {
@@ -294,8 +296,8 @@ function toRow(transaction: Transaction) {
         : ("expense" as const),
     icon:
       transaction.type === "INCOME"
-        ? ("arrow-down-outline" as const)
-        : ("arrow-up-outline" as const),
+        ? ("arrow-up-outline" as const)
+        : ("arrow-down-outline" as const),
   };
 }
 

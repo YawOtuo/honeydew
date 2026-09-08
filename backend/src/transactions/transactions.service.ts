@@ -57,7 +57,7 @@ export class TransactionsService {
     const existing = await this.findOne(id);
     const type = dto.type ?? existing.type;
     const categoryId = dto.categoryId ?? existing.categoryId;
-    await this.getMatchingCategory(categoryId, type);
+    await this.getMatchingCategory(categoryId, type, categoryId === existing.categoryId && type === existing.type ? existing.categoryId : undefined);
     const updated = await this.prisma.transaction.update({
       where: { id },
       data: this.toUpdateData(dto, type, categoryId),
@@ -75,8 +75,10 @@ export class TransactionsService {
     return { id: deleted.id, deleted: true };
   }
 
-  private async getMatchingCategory(categoryId: string, type: TransactionType) {
-    const category = await this.prisma.category.findFirst({ where: { id: categoryId, type } });
+  private async getMatchingCategory(categoryId: string, type: TransactionType, allowedInactiveId?: string) {
+    const category = await this.prisma.category.findFirst({
+      where: { id: categoryId, type, OR: [{ isActive: true }, ...(allowedInactiveId ? [{ id: allowedInactiveId }] : [])] },
+    });
     if (!category) throw new BadRequestException('Category does not match the transaction type.');
     return category;
   }

@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
 import { SectionHeading } from '@/components/SectionHeading';
 import { TransactionRow } from '@/components/TransactionRow';
 import { TransactionDetailsSheet } from '@/components/TransactionDetailsSheet';
-import { Card, Skeleton, SkeletonList, SkeletonText } from '@/components/ui';
+import { BottomSheet, Button, Card, EmptyState, Skeleton, SkeletonList, SkeletonText } from '@/components/ui';
 import { colors, spacing } from '@/theme';
 import { ReportSummary } from '@/api/client';
 import { useMonthlyReportQuery, useSummaryQuery } from '@/api/queries';
@@ -15,41 +15,49 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { token } = useAuth();
+  const { height: windowHeight } = useWindowDimensions();
+  const { token, user } = useAuth();
   const [selectedTransaction, setSelectedTransaction] = useState<ReportSummary['recent'][number] | null>(null);
-  const summaryQuery = useSummaryQuery(token);
+  const [period, setPeriod] = useState<'month' | 'year'>('month');
+  const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
+  const now = new Date();
+  const rangeStart = period === 'month' ? new Date(now.getFullYear(), now.getMonth(), 1) : new Date(now.getFullYear(), 0, 1);
+  const rangeEnd = period === 'month' ? new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999) : new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+  const summaryQuery = useSummaryQuery(token, rangeStart.toISOString(), rangeEnd.toISOString());
   const { data: summary } = summaryQuery;
   const currentYear = new Date().getFullYear();
   const monthlyQuery = useMonthlyReportQuery(token, currentYear);
   const { data: monthlyReport } = monthlyQuery;
   const maxMonthlyTotal = Math.max(...(monthlyReport ?? []).map((item) => Math.max(Number(item.income), Number(item.expenses))), 1);
   if (summaryQuery.isLoading || monthlyQuery.isLoading) return <Screen><DashboardSkeleton /></Screen>;
+  if (summaryQuery.isError || monthlyQuery.isError) return <Screen><EmptyState title="Unable to load dashboard" description="Check your connection and try again." action={<Button onPress={() => { void summaryQuery.refetch(); void monthlyQuery.refetch(); }}>Retry</Button>} /></Screen>;
+  const displayName = nameFromEmail(user?.email);
   return (
     <>
     <Screen floatingAction={<TouchableOpacity style={styles.addButton} activeOpacity={0.85} onPress={() => router.push('/add-transaction')}><Ionicons name="add" size={22} color={colors.surface} /><Text style={styles.addButtonText}>Add transaction</Text></TouchableOpacity>}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>MONDAY, 17 AUGUST</Text>
-          <Text style={styles.greeting}>Good morning, Admin</Text>
+          <Text style={styles.eyebrow}>{now.toLocaleDateString('en-GH', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</Text>
+          <Text style={styles.greeting}>{greetingFor(now)}, {displayName}</Text>
+          <Text style={styles.roleText}>{user?.role === 'ADMIN' ? 'Administrator' : 'Accountant'}</Text>
         </View>
-        <View style={styles.avatar}><Text style={styles.avatarText}>A</Text></View>
+        <View style={styles.avatar}><Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text></View>
       </View>
 
-      <View style={styles.monthRow}>
-        <Text style={styles.month}>August 2026</Text>
+      <TouchableOpacity style={styles.monthRow} onPress={() => setPeriodSheetOpen(true)} accessibilityRole="button" accessibilityLabel="Choose dashboard period">
+        <Text style={styles.month}>{period === 'month' ? now.toLocaleDateString('en-GH', { month: 'long', year: 'numeric' }) : String(now.getFullYear())}</Text>
         <Ionicons name="chevron-down" size={16} color={colors.forest} />
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.summaryGrid}>
-        <SummaryCard label="Income" value={`GH₵ ${format(summary?.income, '24,500')}`} icon="arrow-down-outline" tone="income" onPress={() => router.push('/(tabs)/transactions?filter=income')} />
-        <SummaryCard label="Expenses" value={`GH₵ ${format(summary?.expenses, '12,300')}`} icon="arrow-up-outline" tone="expense" onPress={() => router.push('/(tabs)/transactions?filter=expense')} />
+        <SummaryCard label="Income" value={`GH₵ ${format(summary?.income)}`} period={period} icon="arrow-up-outline" tone="income" onPress={() => router.push('/(tabs)/transactions?filter=income')} />
+        <SummaryCard label="Expenses" value={`GH₵ ${format(summary?.expenses)}`} period={period} icon="arrow-down-outline" tone="expense" onPress={() => router.push('/(tabs)/transactions?filter=expense')} />
       </View>
        <Card style={styles.balanceCard}>
          <View>
            <Text style={styles.balanceLabel}>Current balance</Text>
-           <Text style={styles.balanceValue}>GH₵ {format(summary?.balance, '12,200')}</Text>
+           <Text style={styles.balanceValue}>GH₵ {format(summary?.balance)}</Text>
          </View>
-         <View style={styles.balanceBadge}><Ionicons name="trending-up" size={15} color={colors.income} /><Text style={styles.balanceBadgeText}>12.4%</Text></View>
        </Card>
 
        <Card style={styles.chartCard}>
@@ -68,20 +76,34 @@ export default function DashboardScreen() {
        <SectionHeading title="Recent transactions" action="View all" onActionPress={() => router.push('/(tabs)/transactions')} />
         <Card style={styles.transactionCard}>{summary?.recent?.length ? summary.recent.map((transaction) => <TransactionRow key={transaction.id} transaction={toRow(transaction)} onPress={() => setSelectedTransaction(transaction)} />) : <Text style={styles.empty}>No transactions recorded yet.</Text>}</Card>
       </Screen>
+      <BottomSheet visible={periodSheetOpen} onClose={() => setPeriodSheetOpen(false)} title="Dashboard period" height={Math.round(windowHeight * 0.48)}>
+        <Text style={styles.periodHelp}>Choose the period used for income, expenses, balance, and recent transactions.</Text>
+        <PeriodOption label="Current month" detail={now.toLocaleDateString('en-GH', { month: 'long', year: 'numeric' })} selected={period === 'month'} onPress={() => { setPeriod('month'); setPeriodSheetOpen(false); }} />
+        <PeriodOption label="Current year" detail={String(now.getFullYear())} selected={period === 'year'} onPress={() => { setPeriod('year'); setPeriodSheetOpen(false); }} />
+      </BottomSheet>
       <TransactionDetailsSheet transaction={selectedTransaction} isAdmin={false} onClose={() => setSelectedTransaction(null)} onEdit={() => undefined} onDelete={() => undefined} />
     </>
   );
 }
 
-function SummaryCard({ label, value, icon, tone, onPress }: { label: string; value: string; icon: keyof typeof Ionicons.glyphMap; tone: 'income' | 'expense'; onPress: () => void }) {
+function SummaryCard({ label, value, period, icon, tone, onPress }: { label: string; value: string; period: 'month' | 'year'; icon: keyof typeof Ionicons.glyphMap; tone: 'income' | 'expense'; onPress: () => void }) {
   const isIncome = tone === 'income';
-  return <TouchableOpacity style={styles.summaryTouchable} activeOpacity={0.85} onPress={onPress}><Card style={styles.summaryCard}><View style={[styles.summaryIcon, { backgroundColor: isIncome ? colors.incomeSoft : colors.expenseSoft }]}><Ionicons name={icon} size={18} color={isIncome ? colors.income : colors.expense} /></View><Text style={styles.summaryLabel}>{label}</Text><Text style={styles.summaryValue}>{value}</Text><Text style={styles.summaryPeriod}>This month</Text></Card></TouchableOpacity>;
+  return <TouchableOpacity style={styles.summaryTouchable} activeOpacity={0.85} onPress={onPress}><Card style={styles.summaryCard}><View style={[styles.summaryIcon, { backgroundColor: isIncome ? colors.incomeSoft : colors.expenseSoft }]}><Ionicons name={icon} size={18} color={isIncome ? colors.income : colors.expense} /></View><Text style={styles.summaryLabel}>{label}</Text><Text style={styles.summaryValue}>{value}</Text><Text style={styles.summaryPeriod}>{period === 'month' ? 'This month' : 'This year'}</Text></Card></TouchableOpacity>;
+}
+
+function PeriodOption({ label, detail, selected, onPress }: { label: string; detail: string; selected: boolean; onPress: () => void }) {
+  return <TouchableOpacity style={styles.periodOption} onPress={onPress}><View style={styles.periodOptionText}><Text style={styles.periodLabel}>{label}</Text><Text style={styles.periodDetail}>{detail}</Text></View>{selected ? <Ionicons name="checkmark-circle" size={23} color={colors.forest} /> : <View style={styles.periodCircle} />}</TouchableOpacity>;
 }
 
 function Legend({ color, label }: { color: string; label: string }) { return <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: color }]} /><Text style={styles.legendText}>{label}</Text></View>; }
-function toRow(transaction: ReportSummary['recent'][number]) { return { category: transaction.category.name, description: transaction.description ?? 'No description', date: new Date(transaction.transactionDate).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' }), amount: `GH₵ ${Number(transaction.amount).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, type: transaction.type === 'INCOME' ? 'income' as const : 'expense' as const, icon: transaction.type === 'INCOME' ? 'arrow-down-outline' as const : 'arrow-up-outline' as const }; }
+function toRow(transaction: ReportSummary['recent'][number]) { return { category: transaction.category.name, description: transaction.description ?? 'No description', date: new Date(transaction.transactionDate).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' }), amount: `GH₵ ${Number(transaction.amount).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, type: transaction.type === 'INCOME' ? 'income' as const : 'expense' as const, icon: transaction.type === 'INCOME' ? 'arrow-up-outline' as const : 'arrow-down-outline' as const }; }
 function monthLabel(month: number) { return new Date(2000, month - 1, 1).toLocaleDateString('en', { month: 'short' }).slice(0, 1); }
-function format(value: string | undefined, fallback: string) { return Number(value ?? fallback.replace(',', '')).toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+function format(value?: string) { return Number(value ?? 0).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function greetingFor(date: Date) { const hour = date.getHours(); return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'; }
+function nameFromEmail(email?: string) {
+  const prefix = email?.split('@')[0] ?? 'User';
+  return prefix.split(/[._-]+/).filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || 'User';
+}
 
 function DashboardSkeleton() {
   return <>
@@ -98,10 +120,17 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
   eyebrow: { color: colors.slate, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   greeting: { color: colors.ink, fontSize: 23, fontWeight: '800', marginTop: 6 },
+  roleText: { color: colors.slate, fontSize: 12, fontWeight: '700', marginTop: 4 },
   avatar: { width: 44, height: 44, borderRadius: 16, backgroundColor: colors.honeySoft, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: colors.forest, fontSize: 18, fontWeight: '800' },
   monthRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 12 },
   month: { color: colors.forest, fontSize: 14, fontWeight: '800' },
+  periodHelp: { color: colors.slate, fontSize: 13, lineHeight: 19, marginBottom: 10 },
+  periodOption: { minHeight: 66, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.line },
+  periodOptionText: { flex: 1 },
+  periodLabel: { color: colors.ink, fontSize: 15, fontWeight: '800' },
+  periodDetail: { color: colors.slate, fontSize: 12, marginTop: 4 },
+  periodCircle: { width: 21, height: 21, borderRadius: 11, borderWidth: 2, borderColor: colors.line },
   summaryGrid: { flexDirection: 'row', gap: 12 },
   summaryTouchable: { flex: 1 },
   summaryCard: { flex: 1, backgroundColor: colors.surface, borderRadius: 20, padding: 16, minHeight: 142 },

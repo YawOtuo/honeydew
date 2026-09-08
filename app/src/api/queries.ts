@@ -8,12 +8,13 @@ export const queryKeys = {
   monthly: (year: number) => ['reports', 'monthly', year] as const,
   transactions: ['transactions'] as const,
   categories: ['categories'] as const,
+  managedCategories: ['categories', 'managed'] as const,
   users: ['users'] as const,
   audit: ['audit'] as const,
 };
 
-export function useSummaryQuery(token: string | null) {
-  return useQuery({ queryKey: queryKeys.summary, queryFn: () => getReportSummary(token!), enabled: Boolean(token) });
+export function useSummaryQuery(token: string | null, from?: string, to?: string) {
+  return useQuery({ queryKey: [...queryKeys.summary, from, to], queryFn: () => getReportSummary(token!, from, to), enabled: Boolean(token) });
 }
 
 export function useCategoryReportQuery(token: string | null) {
@@ -30,6 +31,10 @@ export function useTransactionsQuery(token: string | null) {
 
 export function useCategoriesQuery(token: string | null) {
   return useQuery({ queryKey: queryKeys.categories, queryFn: () => getCategories(token!), enabled: Boolean(token) });
+}
+
+export function useManagedCategoriesQuery(token: string | null, isAdmin: boolean) {
+  return useQuery({ queryKey: queryKeys.managedCategories, queryFn: () => getCategories(token!, true), enabled: Boolean(token) && isAdmin });
 }
 
 export function useUsersQuery(token: string | null) {

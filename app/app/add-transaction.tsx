@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dimensions, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
-import { createTransaction, updateTransaction } from "@/api/client";
+import { createTransaction, updateTransaction, type PaymentMethod } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
 import { colors } from "@/theme";
 import { BottomSheet, Button, Input, Select, useToast } from "@/components/ui";
@@ -22,7 +23,12 @@ export default function AddTransactionScreen() {
   const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [transactionDate, setTransactionDate] = useState(new Date());
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [error, setError] = useState("");
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [pendingTransaction, setPendingTransaction] = useState<Parameters<typeof createTransaction>[1] | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const categoriesQuery = useCategoriesQuery(token);
@@ -34,10 +40,13 @@ export default function AddTransactionScreen() {
     setCategoryId(transaction.category.id);
     setDescription(transaction.description ?? "");
     setInvoiceNumber(transaction.invoiceNumber ?? "");
+    setTransactionDate(new Date(transaction.transactionDate));
+    setPaymentMethod(transaction.paymentMethod ?? "CASH");
   }, [transaction]);
   const createMutation = useMutation({
     mutationFn: (body: Parameters<typeof createTransaction>[1]) => isEditing ? updateTransaction(token!, id!, body) : createTransaction(token!, body),
     onSuccess: async () => {
+      setConfirmationOpen(false);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.transactions }),
         queryClient.invalidateQueries({ queryKey: queryKeys.summary }),
@@ -48,25 +57,33 @@ export default function AddTransactionScreen() {
        showToast(isEditing ? "Transaction updated successfully." : "Transaction saved successfully.");
       closeSheet();
     },
-    onError: (saveError) => setError(saveError instanceof Error ? saveError.message : "Unable to save transaction."),
+    onError: (saveError) => {
+      setConfirmationOpen(false);
+      setError(saveError instanceof Error ? saveError.message : "Unable to save transaction.");
+    },
   });
 
-  async function save() {
+  function review() {
     if (!token) return;
     setError("");
     if (!amount || Number(amount) <= 0 || !categoryId) {
       setError("Enter an amount and choose a category.");
       return;
     }
-    createMutation.mutate({
-        type,
-        amount,
-        categoryId,
-        transactionDate: new Date().toISOString(),
-        description: description || undefined,
-        invoiceNumber: invoiceNumber || undefined,
-        paymentMethod: "CASH",
-      });
+    setPendingTransaction({
+      type,
+      amount,
+      categoryId,
+      transactionDate: transactionDate.toISOString(),
+      description: description.trim() || undefined,
+      invoiceNumber: invoiceNumber.trim() || undefined,
+      paymentMethod,
+    });
+    setConfirmationOpen(true);
+  }
+
+  function confirm() {
+    if (pendingTransaction) createMutation.mutate(pendingTransaction);
   }
 
   function closeSheet() {
@@ -74,8 +91,10 @@ export default function AddTransactionScreen() {
     else router.replace('/(tabs)');
   }
 
-  return (
-     <BottomSheet visible onClose={closeSheet} title={isEditing ? "Edit transaction" : "Add transaction"} height={Math.round(Dimensions.get("window").height * 0.88)} footer={<Button style={styles.save} onPress={save} loading={createMutation.isPending}>{isEditing ? "Save changes" : "Save transaction"}</Button>}>
+  const selectedCategory = availableCategories.find((category) => category.id === categoryId)?.name ?? transaction?.category.name ?? "Not selected";
+
+  return <>
+     <BottomSheet visible onClose={closeSheet} title={isEditing ? "Edit transaction" : "Add transaction"} height={Math.round(Dimensions.get("window").height * 0.88)} footer={<Button style={styles.save} onPress={review}>{isEditing ? "Review changes" : "Review transaction"}</Button>}>
       <View style={styles.content}>
         <View style={styles.typeSwitch}>
           <TouchableOpacity
@@ -126,18 +145,55 @@ export default function AddTransactionScreen() {
             style={styles.amountInput}
           />
         </View>
-        <Select label="Category" value={categoryId} onChange={setCategoryId} placeholder={categoriesQuery.isLoading ? "Loading categories..." : "Choose a category"} emptyMessage={categoriesQuery.isError ? "Unable to load categories." : "No categories available."} options={availableCategories.map((category) => ({ label: category.name, value: category.id }))} />
-        <Input label="Invoice number" placeholder="e.g. INV-001" value={invoiceNumber} onChangeText={setInvoiceNumber} />
+        <Select searchable label="Category" value={categoryId} onChange={setCategoryId} placeholder={categoriesQuery.isLoading ? "Loading categories..." : "Choose a category"} emptyMessage={categoriesQuery.isError ? "Unable to load categories." : "No categories available."} options={availableCategories.map((category) => ({ label: category.name, value: category.id }))} />
+        <Text style={styles.label}>Date</Text>
+        <TouchableOpacity style={styles.dateControl} onPress={() => setDatePickerOpen(true)} accessibilityRole="button" accessibilityLabel="Choose transaction date">
+          <Ionicons name="calendar-outline" size={20} color={colors.forest} />
+          <Text style={styles.dateText}>{transactionDate.toLocaleDateString("en-GH", { day: "numeric", month: "long", year: "numeric" })}</Text>
+          <Ionicons name="chevron-down" size={18} color={colors.slate} />
+        </TouchableOpacity>
+        {datePickerOpen ? <DateTimePicker
+          value={transactionDate}
+          mode="date"
+          display={process.env.EXPO_OS === "ios" ? "inline" : "default"}
+          onChange={(event, selectedDate) => {
+            if (process.env.EXPO_OS !== "ios") setDatePickerOpen(false);
+            if (event.type === "set" && selectedDate) setTransactionDate(selectedDate);
+          }}
+        /> : null}
         <Input label="Description" placeholder="Add some context" value={description} onChangeText={setDescription} multiline style={styles.multiline} />
-        <View style={styles.payment}>
-          <Ionicons name="cash-outline" size={20} color={colors.forest} />
-          <Text style={styles.paymentText}>Payment method</Text>
-          <Text style={styles.cash}>Cash</Text>
-        </View>
+        <Select label="Payment method" value={paymentMethod} onChange={(value) => setPaymentMethod(value as PaymentMethod)} options={[{ label: "Cash", value: "CASH" }, { label: "MoMo", value: "MOMO" }, { label: "Bank", value: "BANK" }]} />
+        <Input label="Invoice number" placeholder="e.g. INV-001" value={invoiceNumber} onChangeText={setInvoiceNumber} />
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
     </BottomSheet>
-  );
+    <BottomSheet visible={confirmationOpen} onClose={() => setConfirmationOpen(false)} title={isEditing ? "Confirm changes" : "Confirm transaction"} height={Math.round(Dimensions.get("window").height * 0.68)} footer={<View style={styles.confirmActions}><TouchableOpacity disabled={createMutation.isPending} style={styles.backButton} onPress={() => setConfirmationOpen(false)}><Text style={styles.backButtonText}>Go back</Text></TouchableOpacity><Button style={styles.confirmButton} onPress={confirm} loading={createMutation.isPending}>{isEditing ? "Confirm changes" : "Confirm"}</Button></View>}>
+      <View style={styles.confirmContent}>
+        <View style={[styles.confirmBadge, type === "INCOME" ? styles.confirmIncome : styles.confirmExpense]}><Text style={styles.confirmBadgeText}>{type === "INCOME" ? "Income" : "Expense"}</Text></View>
+        <Text style={[styles.confirmAmount, { color: type === "INCOME" ? colors.income : colors.expense }]}>GH₵ {formatAmount(amount)}</Text>
+        <Text style={styles.confirmHint}>Please check these details before confirming.</Text>
+        <View style={styles.summaryCard}>
+          <SummaryRow label="Category" value={selectedCategory} />
+          <SummaryRow label="Date" value={new Date(pendingTransaction?.transactionDate ?? Date.now()).toLocaleDateString("en-GH", { day: "numeric", month: "long", year: "numeric" })} />
+          <SummaryRow label="Payment method" value={paymentMethodLabel(paymentMethod)} />
+          <SummaryRow label="Invoice number" value={invoiceNumber.trim() || "Not provided"} />
+          <SummaryRow label="Description" value={description.trim() || "Not provided"} last />
+        </View>
+      </View>
+    </BottomSheet>
+  </>;
+}
+
+function SummaryRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return <View style={[styles.summaryRow, last && styles.summaryRowLast]}><Text style={styles.summaryLabel}>{label}</Text><Text style={styles.summaryValue}>{value}</Text></View>;
+}
+
+function formatAmount(value: string) {
+  return Number(value).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function paymentMethodLabel(value: PaymentMethod) {
+  return value === "MOMO" ? "MoMo" : value === "BANK" ? "Bank" : "Cash";
 }
 
 const styles = StyleSheet.create({
@@ -196,6 +252,8 @@ const styles = StyleSheet.create({
     marginRight: 9,
   },
   amountInput: { flex: 1, color: colors.ink, fontSize: 26, fontWeight: "800" },
+  dateControl: { minHeight: 52, backgroundColor: colors.surface, borderRadius: 13, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
+  dateText: { flex: 1, color: colors.ink, fontSize: 14, fontWeight: "700" },
   categoryList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   category: {
     backgroundColor: colors.surface,
@@ -240,4 +298,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   saveText: { color: colors.forestDark, fontWeight: "800", fontSize: 15 },
+  confirmContent: { paddingHorizontal: 20, paddingBottom: 24, alignItems: "center" },
+  confirmBadge: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
+  confirmIncome: { backgroundColor: colors.incomeSoft },
+  confirmExpense: { backgroundColor: colors.expenseSoft },
+  confirmBadgeText: { color: colors.ink, fontSize: 12, fontWeight: "800" },
+  confirmAmount: { fontSize: 30, fontWeight: "800", marginTop: 12 },
+  confirmHint: { color: colors.slate, fontSize: 13, marginTop: 6, marginBottom: 18 },
+  summaryCard: { width: "100%", backgroundColor: colors.surface, borderRadius: 16, paddingHorizontal: 15 },
+  summaryRow: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.line },
+  summaryRowLast: { borderBottomWidth: 0 },
+  summaryLabel: { color: colors.slate, fontSize: 11, fontWeight: "700", marginBottom: 4 },
+  summaryValue: { color: colors.ink, fontSize: 14, fontWeight: "700" },
+  confirmActions: { flexDirection: "row", gap: 10 },
+  backButton: { flex: 1, minHeight: 52, borderWidth: 1, borderColor: colors.line, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  backButtonText: { color: colors.slate, fontSize: 14, fontWeight: "800" },
+  confirmButton: { flex: 1 },
 });

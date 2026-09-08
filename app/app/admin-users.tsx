@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -13,6 +14,7 @@ import {
 import { createUser, getUsers, User } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
 import { colors } from "@/theme";
+import { Input } from "@/components/ui";
 
 export default function AdminUsersScreen() {
   const router = useRouter();
@@ -20,6 +22,9 @@ export default function AdminUsersScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState<"ADMIN" | "ACCOUNTANT">("ACCOUNTANT");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -34,6 +39,10 @@ export default function AdminUsersScreen() {
       setError("Enter an email and a password with at least 8 characters.");
       return;
     }
+    if (password !== confirmPassword) {
+      setError("The passwords do not match.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -44,6 +53,7 @@ export default function AdminUsersScreen() {
       ]);
       setEmail("");
       setPassword("");
+      setConfirmPassword("");
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -72,14 +82,23 @@ export default function AdminUsersScreen() {
           placeholderTextColor={colors.muted}
           style={styles.input}
         />
-        <Text style={styles.label}>Temporary password</Text>
-        <TextInput
-          secureTextEntry
+        <Input
+          label="Temporary password"
+          secureTextEntry={!showPassword}
+          autoCapitalize="none"
           value={password}
           onChangeText={setPassword}
           placeholder="At least 8 characters"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
+          rightElement={<TouchableOpacity onPress={() => setShowPassword((visible) => !visible)} accessibilityLabel={showPassword ? "Hide password" : "Show password"}><Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={colors.muted} /></TouchableOpacity>}
+        />
+        <Input
+          label="Confirm password"
+          secureTextEntry={!showConfirmPassword}
+          autoCapitalize="none"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          placeholder="Enter the password again"
+          rightElement={<TouchableOpacity onPress={() => setShowConfirmPassword((visible) => !visible)} accessibilityLabel={showConfirmPassword ? "Hide confirmed password" : "Show confirmed password"}><Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color={colors.muted} /></TouchableOpacity>}
         />
         <Text style={styles.label}>Role</Text>
         <View style={styles.roles}>

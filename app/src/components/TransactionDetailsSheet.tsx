@@ -1,17 +1,18 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { Transaction } from '@/api/client';
+import { PaymentMethod, Transaction } from '@/api/client';
 import { BottomSheet, Button } from '@/components/ui';
 import { colors } from '@/theme';
 
 export function TransactionDetailsSheet({ transaction, isAdmin, onClose, onEdit, onDelete }: { transaction: Transaction | null; isAdmin: boolean; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
   if (!transaction) return null;
   const actions = isAdmin ? <View style={styles.actions}><Button onPress={onEdit} style={styles.edit}>Edit transaction</Button><TouchableOpacity onPress={onDelete} style={styles.delete}><Text style={styles.deleteText}>Delete transaction</Text></TouchableOpacity></View> : undefined;
-  return <BottomSheet visible onClose={onClose} title="Transaction details" footer={actions}><View style={styles.content}><View style={styles.amount}><Text style={styles.type}>{transaction.type === 'INCOME' ? 'Income' : 'Expense'}</Text><Text style={[styles.value, { color: transaction.type === 'INCOME' ? colors.income : colors.expense }]}>{transaction.type === 'INCOME' ? '+' : '-'} GH₵ {formatAmount(transaction.amount)}</Text></View><DetailLine label="Category" value={transaction.category.name} /><DetailLine label="Date" value={new Date(transaction.transactionDate).toLocaleString('en-GH')} /><DetailLine label="Payment method" value={transaction.paymentMethod === 'CASH' ? 'Cash' : 'Not specified'} /><DetailLine label="Invoice number" value={transaction.invoiceNumber ?? 'Not specified'} /><DetailLine label="Description" value={transaction.description ?? 'No description'} /></View></BottomSheet>;
+  return <BottomSheet visible onClose={onClose} title="Transaction details" footer={actions}><View style={styles.content}><View style={styles.amount}><Text style={styles.type}>{transaction.type === 'INCOME' ? 'Income' : 'Expense'}</Text><Text style={[styles.value, { color: transaction.type === 'INCOME' ? colors.income : colors.expense }]}>{transaction.type === 'INCOME' ? '+' : '-'} GH₵ {formatAmount(transaction.amount)}</Text></View><DetailLine label="Category" value={transaction.category.name} /><DetailLine label="Date" value={new Date(transaction.transactionDate).toLocaleString('en-GH')} /><DetailLine label="Payment method" value={paymentMethodLabel(transaction.paymentMethod)} /><DetailLine label="Invoice number" value={transaction.invoiceNumber ?? 'Not specified'} /><DetailLine label="Description" value={transaction.description ?? 'No description'} /></View></BottomSheet>;
 }
 
 function DetailLine({ label, value }: { label: string; value: string }) { return <View style={styles.line}><Text style={styles.label}>{label}</Text><Text style={styles.text}>{value}</Text></View>; }
 function formatAmount(value: string) { return Number(value).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function paymentMethodLabel(value: PaymentMethod | null) { return value === 'MOMO' ? 'MoMo' : value === 'BANK' ? 'Bank' : value === 'CASH' ? 'Cash' : 'Not specified'; }
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 20 },

@@ -39,7 +39,7 @@ Honeydew is a mobile income and expense tracking app for one school in Ghana. Th
 | Authentication | Email and password with JWT |
 | Account creation | Admin creates users inside the app |
 | Password reset | Not available in v1 |
-| Categories | Predefined categories maintained by the developer; users cannot create categories |
+| Categories | Admin-managed income and expense categories; accountants can select active categories |
 | Connectivity | Internet required for all app operations |
 | Deployment | Backend on Heroku, database on Neon, app through EAS |
 | CI/CD | GitHub Actions |
@@ -57,7 +57,7 @@ Honeydew is a mobile income and expense tracking app for one school in Ghana. Th
 | View reports | Yes | Yes |
 | View audit history | Yes | No |
 | Create users | Yes | No |
-| Create or change categories | No in app; developer-managed | No |
+| Create or change categories | Yes | No |
 
 The first admin account is created by the developer during setup. After that, an admin can create additional admin or accountant accounts from the user-management screen.
 
@@ -79,7 +79,7 @@ Amounts accept decimals, for example `1250.50`. Income and expense values are st
 
 Only admins can edit or delete transactions. A deleted transaction is excluded from normal lists, dashboard totals, and reports, but its deletion remains permanently visible in the audit history.
 
-Categories are predefined and will initially include a `General` option. The remaining income and expense categories will be added by the developer through seed data or a controlled database update.
+Categories begin with the agreed school catalogue and are managed by administrators from Settings. Category selection is searchable. Descriptions remain optional for every category and do not change their label or behavior based on the selected category.
 
 ## 5. Audit Trail
 
@@ -112,7 +112,7 @@ Each audit record includes the acting user where available, event type, affected
 - `color` (optional)
 - `createdAt`
 
-Categories should not be hard-deleted because transactions may reference them. Developer-controlled changes should preserve existing historical data.
+Categories are archived rather than hard-deleted because transactions may reference them. Archived categories remain visible in historical data but cannot be selected for new transactions.
 
 ### Transaction
 
@@ -163,9 +163,13 @@ The create-user endpoint accepts email, temporary password, and role. Passwords 
 
 ```text
 GET /api/categories
+POST /api/categories                       admin only
+PATCH /api/categories/:id                 admin only
+POST /api/categories/:id/archive          admin only
+POST /api/categories/:id/restore          admin only
 ```
 
-There is no category-creation screen or public category write endpoint in v1.
+Category writes are admin-only and audited. Accountants can retrieve active categories for transaction entry.
 
 ### Transactions
 

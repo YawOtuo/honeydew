@@ -19,17 +19,21 @@ async function main() {
     create: { email, passwordHash, role: 'ADMIN' },
   });
 
-  await prisma.category.upsert({
-    where: { name_type: { name: 'General', type: TransactionType.INCOME } },
-    update: {},
-    create: { name: 'General', type: TransactionType.INCOME, color: '#71817B' },
-  });
+  const catalogue = {
+    [TransactionType.INCOME]: ['Fees', 'Feeding', 'Blue Uniform', 'Anniversary Cloth', 'Friday Wear', 'Exercise Books', 'Text Books', 'Stationery', 'Bus Fare', 'Loan', 'Others'],
+    [TransactionType.EXPENSE]: ['Salary', 'Friday Allowance', 'Market', 'Blue Uniform', 'Anniversary Cloth', 'Friday Wear', 'Exercise Books', 'Text Books', 'Stationery', 'Bus Fuel', 'Uber', 'Waste', 'Bus Maintenance', 'Loan Repayment', 'Insurance', 'Utility Bill', 'Certificates/Permit', 'Maintenance', 'Others'],
+  };
 
-  await prisma.category.upsert({
-    where: { name_type: { name: 'General', type: TransactionType.EXPENSE } },
-    update: {},
-    create: { name: 'General', type: TransactionType.EXPENSE, color: '#71817B' },
-  });
+  for (const type of [TransactionType.INCOME, TransactionType.EXPENSE]) {
+    for (const [sortOrder, name] of catalogue[type].entries()) {
+      const normalizedName = name.toLowerCase();
+      await prisma.category.upsert({
+        where: { normalizedName_type: { normalizedName, type } },
+        update: {},
+        create: { name, normalizedName, type, color: '#71817B', sortOrder },
+      });
+    }
+  }
 }
 
 main()
