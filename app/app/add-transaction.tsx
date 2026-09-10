@@ -9,14 +9,13 @@ import { createTransaction, updateTransaction, type PaymentMethod } from "@/api/
 import { useAuth } from "@/context/AuthContext";
 import { colors } from "@/theme";
 import { BottomSheet, Button, Input, Select, useToast } from "@/components/ui";
-import { queryKeys, useCategoriesQuery, useTransactionsQuery } from "@/api/queries";
+import { queryKeys, useCategoriesQuery, useTransactionQuery } from "@/api/queries";
 
 export default function AddTransactionScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { token } = useAuth();
-  const { data: transactions } = useTransactionsQuery(token);
-  const transaction = id ? transactions?.items.find((item) => item.id === id) : undefined;
+  const { data: transaction } = useTransactionQuery(token, id);
   const isEditing = Boolean(id);
   const [type, setType] = useState<"INCOME" | "EXPENSE">("INCOME");
   const [amount, setAmount] = useState("");

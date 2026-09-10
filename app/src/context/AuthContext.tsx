@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PropsWithChildren, createContext, useContext, useEffect, useState } from 'react';
 
-import { AuthUser, login, refreshAccessToken, setRefreshHandler } from '@/api/client';
+import { AuthUser, getMe, login, refreshAccessToken, setRefreshHandler } from '@/api/client';
 
 const TOKEN_KEY = 'honeydew.accessToken';
 const REFRESH_TOKEN_KEY = 'honeydew.refreshToken';
@@ -13,6 +13,7 @@ type AuthContextValue = {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -50,6 +51,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setUser(null);
   }
 
+  async function refreshUser() {
+    if (!token) return;
+    try {
+      const fresh = await getMe(token);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(fresh));
+      setUser(fresh);
+    } catch {
+      // Keep the current session; the shared request handler already deals with expired tokens.
+    }
+  }
+
   async function refreshSession() {
     const storedRefreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
     if (!storedRefreshToken) return null;
@@ -65,7 +77,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }
 
-  return <AuthContext.Provider value={{ user, token, isLoading, signIn, signOut }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, token, isLoading, signIn, signOut, refreshUser }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

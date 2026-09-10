@@ -56,7 +56,7 @@ export default function AdminCategoriesScreen() {
   function chooseType(nextType: CategoryType) { setType(nextType); setEditing(null); setName(''); setError(''); }
 
   if (!isAdmin) return <Screen><EmptyState title="Admin access required" description="Only administrators can manage categories." action={<Button onPress={() => router.back()}>Go back</Button>} /></Screen>;
-  return <Screen>
+  return <Screen refreshing={categoriesQuery.isRefetching} onRefresh={() => void categoriesQuery.refetch()}>
     <TouchableOpacity onPress={() => router.back()} style={styles.backRow}><Ionicons name="chevron-back" size={19} color={colors.forest} /><Text style={styles.back}>Back</Text></TouchableOpacity>
     <Text style={styles.title}>Manage categories</Text><Text style={styles.subtitle}>Create and maintain the categories used for school transactions.</Text>
     <Card style={styles.form}>

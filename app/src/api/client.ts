@@ -55,6 +55,25 @@ export type TransactionListResponse = {
   totalPages: number;
 };
 
+export type TransactionSort = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
+export type DatePreset = 'any' | 'this_month' | 'last_month' | 'last_30' | 'this_year' | 'custom';
+
+export type TransactionFilters = {
+  type?: 'INCOME' | 'EXPENSE';
+  categoryIds?: string[];
+  paymentMethods?: PaymentMethod[];
+  from?: string;
+  to?: string;
+  search?: string;
+  createdById?: string;
+  minAmount?: string;
+  maxAmount?: string;
+  sort?: TransactionSort;
+  datePreset?: DatePreset;
+  page?: number;
+  limit?: number;
+};
+
 export type Category = { id: string; name: string; type: 'INCOME' | 'EXPENSE'; color: string | null; isActive: boolean; sortOrder: number };
 export type ReportSummary = { income: string; expenses: string; balance: string; recent: Transaction[] };
 export type MonthlyReport = { month: number; income: string; expenses: string; balance: string }[];
@@ -73,8 +92,30 @@ export function refreshAccessToken(refreshToken: string) {
   return apiRequest<LoginResponse>('/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) }, undefined, false);
 }
 
-export function getTransactions(token: string) {
-  return apiRequest<TransactionListResponse>('/transactions?page=1&limit=50', {}, token);
+export function filterParams(filters: TransactionFilters) {
+  const params = new URLSearchParams();
+  if (filters.type) params.set('type', filters.type);
+  if (filters.categoryIds?.length) params.set('categoryIds', filters.categoryIds.join(','));
+  if (filters.paymentMethods?.length) params.set('paymentMethods', filters.paymentMethods.join(','));
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  if (filters.search?.trim()) params.set('search', filters.search.trim());
+  if (filters.createdById) params.set('createdById', filters.createdById);
+  if (filters.minAmount?.trim()) params.set('minAmount', filters.minAmount.trim());
+  if (filters.maxAmount?.trim()) params.set('maxAmount', filters.maxAmount.trim());
+  return params;
+}
+
+export function getTransactions(token: string, filters: TransactionFilters = {}) {
+  const params = filterParams(filters);
+  params.set('page', String(filters.page ?? 1));
+  params.set('limit', String(filters.limit ?? 30));
+  if (filters.sort) params.set('sort', filters.sort);
+  return apiRequest<TransactionListResponse>(`/transactions?${params.toString()}`, {}, token);
+}
+
+export function getTransaction(token: string, id: string) {
+  return apiRequest<Transaction>(`/transactions/${id}`, {}, token);
 }
 
 export function getCategories(token: string, includeArchived = false) { return apiRequest<Category[]>(`/categories${includeArchived ? '?includeArchived=true' : ''}`, {}, token); }
@@ -103,15 +144,16 @@ export function deleteTransaction(token: string, id: string) {
   return apiRequest<{ id: string; deleted: boolean }>(`/transactions/${id}`, { method: 'DELETE' }, token);
 }
 
-export function getReportSummary(token: string, from?: string, to?: string) {
-  const params = new URLSearchParams();
-  if (from) params.set('from', from);
-  if (to) params.set('to', to);
-  const query = params.toString();
+export function getReportSummary(token: string, filters: TransactionFilters = {}) {
+  const query = filterParams(filters).toString();
   return apiRequest<ReportSummary>(`/reports/summary${query ? `?${query}` : ''}`, {}, token);
 }
 export function getMonthlyReport(token: string, year = new Date().getFullYear()) { return apiRequest<MonthlyReport>(`/reports/monthly?year=${year}`, {}, token); }
-export function getCategoryReport(token: string) { return apiRequest<CategoryReport>('/reports/by-category', {}, token); }
+export function getCategoryReport(token: string, filters: TransactionFilters = {}) {
+  const query = filterParams(filters).toString();
+  return apiRequest<CategoryReport>(`/reports/by-category${query ? `?${query}` : ''}`, {}, token);
+}
 export function createUser(token: string, body: { email: string; password: string; role: 'ADMIN' | 'ACCOUNTANT' }) { return apiRequest<AuthUser>('/users', { method: 'POST', body: JSON.stringify(body) }, token); }
 export function getUsers(token: string) { return apiRequest<User[]>('/users', {}, token); }
+export function getMe(token: string) { return apiRequest<AuthUser>('/users/me', {}, token); }
 export function getAudit(token: string) { return apiRequest<{ items: AuditEntry[] }>('/audit?page=1&limit=50', {}, token); }

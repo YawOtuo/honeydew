@@ -73,6 +73,8 @@ model Transaction {
   @@index([transactionDate])
   @@index([type])
   @@index([categoryId])
+  @@index([paymentMethod])
+  @@index([createdById])
   @@index([deletedAt])
 }
 

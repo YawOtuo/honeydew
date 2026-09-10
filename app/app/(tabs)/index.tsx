@@ -23,7 +23,7 @@ export default function DashboardScreen() {
   const now = new Date();
   const rangeStart = period === 'month' ? new Date(now.getFullYear(), now.getMonth(), 1) : new Date(now.getFullYear(), 0, 1);
   const rangeEnd = period === 'month' ? new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999) : new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-  const summaryQuery = useSummaryQuery(token, rangeStart.toISOString(), rangeEnd.toISOString());
+  const summaryQuery = useSummaryQuery(token, { from: rangeStart.toISOString(), to: rangeEnd.toISOString() });
   const { data: summary } = summaryQuery;
   const currentYear = new Date().getFullYear();
   const monthlyQuery = useMonthlyReportQuery(token, currentYear);
@@ -34,7 +34,7 @@ export default function DashboardScreen() {
   const displayName = nameFromEmail(user?.email);
   return (
     <>
-    <Screen floatingAction={<TouchableOpacity style={styles.addButton} activeOpacity={0.85} onPress={() => router.push('/add-transaction')}><Ionicons name="add" size={22} color={colors.surface} /><Text style={styles.addButtonText}>Add transaction</Text></TouchableOpacity>}>
+    <Screen refreshing={summaryQuery.isRefetching || monthlyQuery.isRefetching} onRefresh={() => { void summaryQuery.refetch(); void monthlyQuery.refetch(); }} floatingAction={<TouchableOpacity style={styles.addButton} activeOpacity={0.85} onPress={() => router.push('/add-transaction')}><Ionicons name="add" size={22} color={colors.surface} /><Text style={styles.addButtonText}>Add transaction</Text></TouchableOpacity>}>
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>{now.toLocaleDateString('en-GH', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</Text>

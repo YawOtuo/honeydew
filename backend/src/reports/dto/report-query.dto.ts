@@ -1,15 +1,9 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsISO8601, IsOptional, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
-export class ReportQueryDto {
-  @IsOptional()
-  @IsISO8601()
-  from?: string;
+import { TransactionFilterDto } from '../../transactions/dto/transaction-filter.dto';
 
-  @IsOptional()
-  @IsISO8601()
-  to?: string;
-
+export class ReportQueryDto extends TransactionFilterDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()

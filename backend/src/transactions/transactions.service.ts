@@ -4,8 +4,9 @@ import { Prisma, TransactionType } from '@prisma/client';
 import { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
-import { TransactionQueryDto } from './dto/transaction-query.dto';
+import { TransactionQueryDto, TransactionSort } from './dto/transaction-query.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { buildTransactionWhere } from './transaction-where';
 
 @Injectable()
 export class TransactionsService {
@@ -23,18 +24,13 @@ export class TransactionsService {
   }
 
   async findAll(query: TransactionQueryDto) {
-    const where: Prisma.TransactionWhereInput = {
-      deletedAt: null,
-      type: query.type,
-      categoryId: query.categoryId,
-      transactionDate: this.dateFilter(query.from, query.to),
-    };
+    const where = buildTransactionWhere(query);
     const skip = (query.page - 1) * query.limit;
     const [items, total] = await this.prisma.$transaction([
       this.prisma.transaction.findMany({
         where,
         include: { category: true, createdBy: { select: { id: true, email: true } } },
-        orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
+        orderBy: this.orderBy(query.sort),
         skip,
         take: query.limit,
       }),
@@ -108,9 +104,17 @@ export class TransactionsService {
     };
   }
 
-  private dateFilter(from?: string, to?: string): Prisma.DateTimeFilter | undefined {
-    if (!from && !to) return undefined;
-    return { gte: from ? new Date(from) : undefined, lte: to ? new Date(to) : undefined };
+  private orderBy(sort: TransactionSort): Prisma.TransactionOrderByWithRelationInput[] {
+    switch (sort) {
+      case 'date_asc':
+        return [{ transactionDate: 'asc' }, { createdAt: 'asc' }];
+      case 'amount_desc':
+        return [{ amount: 'desc' }, { transactionDate: 'desc' }];
+      case 'amount_asc':
+        return [{ amount: 'asc' }, { transactionDate: 'desc' }];
+      default:
+        return [{ transactionDate: 'desc' }, { createdAt: 'desc' }];
+    }
   }
 
   private auditData(transaction: { id: string; type: TransactionType; amount: Prisma.Decimal; categoryId: string; description: string | null; invoiceNumber: string | null; paymentMethod: string | null; transactionDate: Date }) {

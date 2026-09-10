@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,12 +29,22 @@ export default function AdminUsersScreen() {
   const [role, setRole] = useState<"ADMIN" | "ACCOUNTANT">("ACCOUNTANT");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     if (token)
       void getUsers(token)
         .then(setUsers)
         .catch(() => setError("Unable to load users."));
   }, [token]);
+  async function refresh() {
+    if (!token) return;
+    setRefreshing(true);
+    try {
+      setUsers(await getUsers(token));
+    } finally {
+      setRefreshing(false);
+    }
+  }
   async function save() {
     if (!token || !email || password.length < 8) {
       setError("Enter an email and a password with at least 8 characters.");
@@ -65,7 +76,11 @@ export default function AdminUsersScreen() {
     }
   }
   return (
-    <ScrollView style={styles.safe} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.safe}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.forest} colors={[colors.forest]} progressBackgroundColor={colors.surface} />}
+    >
       <TouchableOpacity onPress={() => router.back()}>
         <Text style={styles.back}>‹ Back</Text>
       </TouchableOpacity>
@@ -148,7 +163,7 @@ export default function AdminUsersScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { flexGrow: 1, padding: 20, paddingBottom: 40 },
   back: { color: colors.forest, fontWeight: "800", marginTop: 12 },
   title: { color: colors.ink, fontSize: 27, fontWeight: "800", marginTop: 24 },
   subtitle: {

@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   StyleSheet,
   Text,
@@ -11,10 +12,18 @@ import {
   View,
 } from "react-native";
 
-import { deleteTransaction, PaymentMethod, Transaction } from "@/api/client";
-import { queryKeys, useTransactionsQuery } from "@/api/queries";
+import { deleteTransaction, Transaction, TransactionFilters } from "@/api/client";
+import { queryKeys, useCategoriesQuery, useTransactionsQuery, useUsersQuery } from "@/api/queries";
 import { Screen } from "@/components/Screen";
 import { TransactionRow } from "@/components/TransactionRow";
+import {
+  ActiveFilterChips,
+  activeFilterCount,
+  categoryLabel,
+  EMPTY_FILTERS,
+  paymentMethodLabel,
+  TransactionFilterSheet,
+} from "@/components/TransactionFilterSheet";
 import {
   BottomSheet,
   Button,
@@ -30,25 +39,36 @@ export default function TransactionsScreen() {
   const { token, user } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams<{ filter?: string }>();
-  const [filter, setFilter] = useState<"all" | "income" | "expense">(
-    params.filter === "income" || params.filter === "expense"
-      ? params.filter
-      : "all",
-  );
+  const [filters, setFilters] = useState<TransactionFilters>(EMPTY_FILTERS);
+  const [searchInput, setSearchInput] = useState("");
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const { data, isLoading, error, refetch } = useTransactionsQuery(token);
-  const transactions = data?.items ?? [];
-  const filteredTransactions =
-    filter === "all"
-      ? transactions
-      : transactions.filter(
-          (transaction) =>
-            transaction.type === (filter === "income" ? "INCOME" : "EXPENSE"),
-        );
+  const isAdmin = user?.role === "ADMIN";
+  const { data, isLoading, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useTransactionsQuery(token, filters);
+  const categoriesQuery = useCategoriesQuery(token);
+  const usersQuery = useUsersQuery(token, isAdmin);
+  const transactions = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data],
+  );
+  const total = data?.pages[0]?.total ?? 0;
+  const activeCount = activeFilterCount(filters);
+  const hasSearch = Boolean(filters.search);
+  const categoryNames = useMemo(() => {
+    const map = new Map<string, string>();
+    (categoriesQuery.data ?? []).forEach((category) => map.set(category.id, categoryLabel(category)));
+    return map;
+  }, [categoriesQuery.data]);
+  const userNames = useMemo(() => {
+    const map = new Map<string, string>();
+    (usersQuery.data ?? []).forEach((user) => map.set(user.id, nameFromEmail(user.email)));
+    return map;
+  }, [usersQuery.data]);
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(token!, id),
     onSuccess: async () => {
@@ -74,9 +94,29 @@ export default function TransactionsScreen() {
     error instanceof Error ? error.message : "Unable to load transactions.";
 
   useEffect(() => {
-    if (params.filter === "income" || params.filter === "expense")
-      setFilter(params.filter);
+    if (params.filter === "income" || params.filter === "expense") {
+      setFilters((current) => ({
+        ...current,
+        type: params.filter === "income" ? "INCOME" : "EXPENSE",
+      }));
+    }
   }, [params.filter]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setFilters((current) => {
+        const nextSearch = searchInput.trim() || undefined;
+        if (current.search === nextSearch) return current;
+        return { ...current, search: nextSearch };
+      });
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
+
+  function clearAll() {
+    setFilters(EMPTY_FILTERS);
+    setSearchInput("");
+  }
 
   function confirmDelete(transaction: Transaction) {
     Alert.alert(
@@ -99,7 +139,7 @@ export default function TransactionsScreen() {
 
   return (
     <>
-      <Screen>
+      <Screen refreshing={isRefetching} onRefresh={() => void refetch()}>
         <View style={styles.heading}>
           <View>
             <Text style={styles.title}>Transactions</Text>
@@ -115,35 +155,58 @@ export default function TransactionsScreen() {
         <View style={styles.search}>
           <Ionicons name="search-outline" size={19} color={colors.slate} />
           <TextInput
-            placeholder="Search transactions"
+            placeholder="Search description, invoice, category"
             placeholderTextColor={colors.muted}
             style={styles.input}
+            value={searchInput}
+            onChangeText={setSearchInput}
+            returnKeyType="search"
+            autoCorrect={false}
           />
+          {searchInput ? (
+            <TouchableOpacity onPress={() => setSearchInput("")} hitSlop={8}>
+              <Ionicons name="close-circle" size={19} color={colors.muted} />
+            </TouchableOpacity>
+          ) : null}
         </View>
         <View style={styles.filters}>
-          <TouchableOpacity onPress={() => setFilter("all")}>
+          <TouchableOpacity onPress={() => setFilters((current) => ({ ...current, type: undefined }))}>
             <Text
-              style={filter === "all" ? styles.filterActive : styles.filter}
+              style={!filters.type ? styles.filterActive : styles.filter}
             >
               All
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setFilter("income")}>
+          <TouchableOpacity onPress={() => setFilters((current) => ({ ...current, type: "INCOME" }))}>
             <Text
-              style={filter === "income" ? styles.filterActive : styles.filter}
+              style={filters.type === "INCOME" ? styles.filterActive : styles.filter}
             >
               Income
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setFilter("expense")}>
+          <TouchableOpacity onPress={() => setFilters((current) => ({ ...current, type: "EXPENSE" }))}>
             <Text
-              style={filter === "expense" ? styles.filterActive : styles.filter}
+              style={filters.type === "EXPENSE" ? styles.filterActive : styles.filter}
             >
               Expenses
             </Text>
           </TouchableOpacity>
-          <Ionicons name="options-outline" size={19} color={colors.forest} />
+          <TouchableOpacity style={styles.filterButton} onPress={() => setFilterSheetOpen(true)}>
+            <Ionicons name="options-outline" size={19} color={colors.forest} />
+            {activeCount ? (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeCount}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
         </View>
+        <ActiveFilterChips
+          filters={filters}
+          onChange={setFilters}
+          categoryNames={categoryNames}
+          userNames={userNames}
+          onClearAll={clearAll}
+        />
         <Card style={styles.card}>
           {isLoading ? (
             <SkeletonList count={6} />
@@ -154,26 +217,60 @@ export default function TransactionsScreen() {
                 <Text style={styles.retry}>Try again</Text>
               </TouchableOpacity>
             </View>
-          ) : filteredTransactions.length ? (
-            filteredTransactions.map((transaction) => (
-              <TransactionRow
-                key={transaction.id}
-                transaction={toRow(transaction)}
-                isDeleting={deletingId === transaction.id}
-                onPress={() => setSelectedTransaction(transaction)}
-              />
-            ))
+          ) : transactions.length ? (
+            <>
+              {transactions.map((transaction) => (
+                <TransactionRow
+                  key={transaction.id}
+                  transaction={toRow(transaction)}
+                  isDeleting={deletingId === transaction.id}
+                  onPress={() => setSelectedTransaction(transaction)}
+                />
+              ))}
+              {hasNextPage ? (
+                <TouchableOpacity
+                  style={styles.loadMore}
+                  disabled={isFetchingNextPage}
+                  onPress={() => void fetchNextPage()}
+                >
+                  {isFetchingNextPage ? (
+                    <ActivityIndicator color={colors.forest} />
+                  ) : (
+                    <Text style={styles.loadMoreText}>Load more</Text>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.resultCount}>
+                  {total} transaction{total === 1 ? "" : "s"}
+                </Text>
+              )}
+            </>
           ) : (
-            <EmptyState
-              title={
-                filter === "all"
-                  ? "No transactions recorded yet."
-                  : `No ${filter} transactions found.`
-              }
-            />
+            <View style={styles.state}>
+              <EmptyState
+                title={
+                  activeCount || hasSearch
+                    ? "No transactions match these filters."
+                    : "No transactions recorded yet."
+                }
+              />
+              {activeCount || hasSearch ? (
+                <TouchableOpacity onPress={clearAll}>
+                  <Text style={styles.retry}>Clear filters</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           )}
         </Card>
       </Screen>
+      <TransactionFilterSheet
+        visible={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        value={filters}
+        onApply={setFilters}
+        categories={categoriesQuery.data ?? []}
+        users={isAdmin ? usersQuery.data : undefined}
+      />
       <TransactionDetailsSheet
         transaction={selectedTransaction}
         isAdmin={user?.role === "ADMIN"}
@@ -262,8 +359,9 @@ function TransactionDetailsSheet({
   );
 }
 
-function paymentMethodLabel(value: PaymentMethod | null) {
-  return value === "MOMO" ? "MoMo" : value === "BANK" ? "Bank" : value === "CASH" ? "Cash" : "Not specified";
+function nameFromEmail(email: string) {
+  const prefix = email.split("@")[0] ?? email;
+  return prefix.split(/[._-]+/).filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ") || email;
 }
 
 function DetailLine({ label, value }: { label: string; value: string }) {
@@ -347,6 +445,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  filterButton: {
+    marginLeft: "auto",
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.honey,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterBadgeText: { color: colors.forestDark, fontSize: 10, fontWeight: "800" },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 20,
@@ -372,6 +492,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     marginTop: 10,
+  },
+  loadMore: {
+    paddingVertical: 16,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  loadMoreText: { color: colors.forest, fontSize: 13, fontWeight: "800" },
+  resultCount: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
   },
   detailsSheet: { paddingBottom: 20 },
   detailAmount: {
@@ -409,10 +545,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   deleteText: { color: colors.expense, fontSize: 14, fontWeight: "800" },
-  empty: {
-    color: colors.slate,
-    fontSize: 13,
-    textAlign: "center",
-    paddingVertical: 30,
-  },
 });

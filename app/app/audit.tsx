@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,14 +19,29 @@ export default function AuditScreen() {
   const { token } = useAuth();
   const [items, setItems] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     if (token)
       void getAudit(token)
         .then((response) => setItems(response.items))
         .finally(() => setLoading(false));
   }, [token]);
+  async function refresh() {
+    if (!token) return;
+    setRefreshing(true);
+    try {
+      const response = await getAudit(token);
+      setItems(response.items);
+    } finally {
+      setRefreshing(false);
+    }
+  }
   return (
-    <ScrollView style={styles.safe} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.safe}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.forest} colors={[colors.forest]} progressBackgroundColor={colors.surface} />}
+    >
       <TouchableOpacity onPress={() => router.back()}>
         <Text style={styles.back}>‹ Back</Text>
       </TouchableOpacity>
@@ -55,7 +71,7 @@ export default function AuditScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { flexGrow: 1, padding: 20, paddingBottom: 40 },
   back: { color: colors.forest, fontWeight: "800", marginTop: 12 },
   title: { color: colors.ink, fontSize: 27, fontWeight: "800", marginTop: 24 },
   subtitle: {

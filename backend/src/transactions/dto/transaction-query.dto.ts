@@ -1,22 +1,15 @@
-import { TransactionType } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsEnum, IsISO8601, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 
-export class TransactionQueryDto {
-  @IsOptional()
-  @IsEnum(TransactionType)
-  type?: TransactionType;
+import { TransactionFilterDto } from './transaction-filter.dto';
 
-  @IsOptional()
-  categoryId?: string;
+export const TRANSACTION_SORTS = ['date_desc', 'date_asc', 'amount_desc', 'amount_asc'] as const;
+export type TransactionSort = (typeof TRANSACTION_SORTS)[number];
 
+export class TransactionQueryDto extends TransactionFilterDto {
   @IsOptional()
-  @IsISO8601()
-  from?: string;
-
-  @IsOptional()
-  @IsISO8601()
-  to?: string;
+  @IsIn(TRANSACTION_SORTS)
+  sort: TransactionSort = 'date_desc';
 
   @IsOptional()
   @Type(() => Number)

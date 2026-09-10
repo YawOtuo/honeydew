@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
@@ -9,9 +10,18 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshUser } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  return <Screen><Text style={styles.title}>Settings</Text><Text style={styles.subtitle}>Manage your Honeydew account.</Text><Card style={styles.profile}><View style={styles.avatar}><Text style={styles.avatarText}>{user?.email.charAt(0).toUpperCase() ?? 'A'}</Text></View><View><Text style={styles.name}>{user?.email ?? 'Signed-in user'}</Text><Text style={styles.email}>Ghana · Africa/Accra</Text></View><View style={styles.role}><Text style={styles.roleText}>{user?.role}</Text></View></Card><Card style={styles.card}>{isAdmin ? <><SettingRow icon="people-outline" label="Manage users" onPress={() => router.push('/admin-users')} /><SettingRow icon="pricetags-outline" label="Manage categories" onPress={() => router.push('/admin-categories')} /><SettingRow icon="shield-checkmark-outline" label="Audit history" onPress={() => router.push('/audit')} /></> : null}<SettingRow icon="log-out-outline" label="Log out" danger onPress={() => void signOut()} /></Card></Screen>;
+  const [refreshing, setRefreshing] = useState(false);
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      await refreshUser();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+  return <Screen refreshing={refreshing} onRefresh={() => void refresh()}><Text style={styles.title}>Settings</Text><Text style={styles.subtitle}>Manage your Honeydew account.</Text><Card style={styles.profile}><View style={styles.avatar}><Text style={styles.avatarText}>{user?.email.charAt(0).toUpperCase() ?? 'A'}</Text></View><View><Text style={styles.name}>{user?.email ?? 'Signed-in user'}</Text><Text style={styles.email}>Ghana · Africa/Accra</Text></View><View style={styles.role}><Text style={styles.roleText}>{user?.role}</Text></View></Card><Card style={styles.card}>{isAdmin ? <><SettingRow icon="people-outline" label="Manage users" onPress={() => router.push('/admin-users')} /><SettingRow icon="pricetags-outline" label="Manage categories" onPress={() => router.push('/admin-categories')} /><SettingRow icon="shield-checkmark-outline" label="Audit history" onPress={() => router.push('/audit')} /></> : null}<SettingRow icon="log-out-outline" label="Log out" danger onPress={() => void signOut()} /></Card></Screen>;
 }
 
 function SettingRow({ icon, label, danger, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; danger?: boolean; onPress: () => void }) { return <TouchableOpacity style={styles.row} onPress={onPress}><Ionicons name={icon} size={20} color={danger ? colors.expense : colors.forest} /><Text style={[styles.rowText, danger && { color: colors.expense }]}>{label}</Text><Ionicons name="chevron-forward" size={18} color={colors.muted} /></TouchableOpacity>; }

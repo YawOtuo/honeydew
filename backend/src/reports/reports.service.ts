@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, TransactionType } from '@prisma/client';
 
 import { PrismaService } from '../prisma.service';
+import { buildTransactionWhere } from '../transactions/transaction-where';
 import { ReportQueryDto } from './dto/report-query.dto';
 
 @Injectable()
@@ -9,7 +10,7 @@ export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async summary(query: ReportQueryDto) {
-    const where = this.where(query.from, query.to);
+    const where = buildTransactionWhere(query);
     const [income, expense, recent] = await this.prisma.$transaction([
       this.prisma.transaction.aggregate({ where: { ...where, type: TransactionType.INCOME }, _sum: { amount: true } }),
       this.prisma.transaction.aggregate({ where: { ...where, type: TransactionType.EXPENSE }, _sum: { amount: true } }),
@@ -23,7 +24,7 @@ export class ReportsService {
   async byCategory(query: ReportQueryDto) {
     const groups = await this.prisma.transaction.groupBy({
       by: ['categoryId', 'type'],
-      where: this.where(query.from, query.to),
+      where: buildTransactionWhere(query),
       _sum: { amount: true },
       orderBy: { _sum: { amount: 'desc' } },
     });
